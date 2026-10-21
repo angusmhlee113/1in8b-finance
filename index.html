@@ -214,6 +214,16 @@
   .term { margin-top: 12px; padding: 10px 12px; border-left: 3px solid var(--hus); background: var(--soft); font-size: .88rem; color: var(--muted); }
   .term b { color: var(--ink); }
   .term-chip { cursor: help; }
+  #shop:empty { display: none; }
+  .shop-intro { margin: 0 0 10px; }
+  .shop { display: grid; gap: 6px; }
+  .shop-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 8px 12px; text-align: left;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--soft); color: var(--ink); font: inherit; cursor: pointer; }
+  .shop-item:hover:not(:disabled) { border-color: var(--accent); }
+  .shop-item:disabled { opacity: .5; cursor: default; }
+  .si-name { font-weight: 600; font-size: .9rem; }
+  .si-meta { font-size: .78rem; color: var(--muted); }
+  .si-meta b.sanity { color: var(--san); } .si-meta b.network { color: var(--net); } .si-meta b.hustle { color: var(--hus); }
   .jargon { text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-color: var(--muted); cursor: help; }
   .jargon:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
   #tip { position: fixed; z-index: 1000; max-width: 280px; padding: 10px 12px; border-radius: 10px; background: var(--ink); color: var(--bg);
@@ -374,25 +384,26 @@
 <main id="app"></main>
 
 <script src="js/i18n.js"></script>
-<script src="js/data.js"></script>
-<script src="js/life.js"></script>
-<script src="js/variants.js"></script>
-<script src="js/more-milestones.js"></script>
-<script src="js/events.js"></script>
-<script src="js/shocks.js"></script>
-<script src="js/eras.js"></script>
-<script src="js/people.js"></script>
-<script src="js/late-life.js"></script>
-<script src="js/more-events.js"></script>
-<script src="js/childhood.js"></script>
-<script src="js/pixels.js"></script>
-<script src="js/leek.js"></script>
-<script src="js/collection.js"></script>
-<script src="js/money.js"></script>
-<script src="js/markets.js"></script>
-<script src="js/glossary.js"></script>
-<script src="js/portfolio.js"></script>
-<script src="js/career.js"></script>
-<script src="js/game.js"></script>
+<script src="js/data.js?v=20261021"></script>
+<script src="js/life.js?v=20261021"></script>
+<script src="js/variants.js?v=20261021"></script>
+<script src="js/more-milestones.js?v=20261021"></script>
+<script src="js/events.js?v=20261021"></script>
+<script src="js/shocks.js?v=20261021"></script>
+<script src="js/eras.js?v=20261021"></script>
+<script src="js/people.js?v=20261021"></script>
+<script src="js/late-life.js?v=20261021"></script>
+<script src="js/more-events.js?v=20261021"></script>
+<script src="js/childhood.js?v=20261021"></script>
+<script src="js/pixels.js?v=20261021"></script>
+<script src="js/leek.js?v=20261021"></script>
+<script src="js/collection.js?v=20261021"></script>
+<script src="js/money.js?v=20261021"></script>
+<script src="js/markets.js?v=20261021"></script>
+<script src="js/glossary.js?v=20261021"></script>
+<script src="js/portfolio.js?v=20261021"></script>
+<script src="js/career.js?v=20261021"></script>
+<script src="js/shop.js?v=20261021"></script>
+<script src="js/game.js?v=20261021"></script>
 </body>
 </html>

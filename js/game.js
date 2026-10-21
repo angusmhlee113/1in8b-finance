@@ -28,7 +28,7 @@ function birth(opts = {}) {
     hustle: clamp(30 + rint(0, 30) + (tier <= 1 ? 15 : 0)),
     sanity: clamp(70 + rint(0, 20)),
     income: 0, upkeep: 0, prices: 1, inflation: 0, sides: [], alloc: null, pension: 0, property: null, credit: null, rate: null,
-    hist: [], promos: [], terms: new Set(), shadow: null, market: null, taxPaid: 0, rank: 0, baseJob: null, job: JOBS.kid, track: null, school: null, score: 0,
+    hist: [], promos: [], terms: new Set(), shadow: null, market: null, taxPaid: 0, bought: {}, rank: 0, baseJob: null, job: JOBS.kid, track: null, school: null, score: 0,
     heat: 0, city: null, flags: {}, log: [], used: new Set(),
     risk: 0, type: null, notes: [], ai: null,
     look: makeLook(iso), home: pick(HOMETOWNS[iso]), family: makeFamily(tier, g),
@@ -666,6 +666,7 @@ function buildShell() {
       <div class="col">
         <section class="panel idcard" id="idcard"></section>
         <section class="panel" id="status"></section>
+        <section class="panel" id="shop"></section>
       </div>
       <div class="col">
         <section class="panel scene"><canvas id="scene" aria-hidden="true"></canvas><div class="caption" id="caption"></div></section>
@@ -751,6 +752,7 @@ function renderAll() {
       <p class="small muted careerhint">${careerReady() ? tr(L("Change jobs or start a side hustle. Pauses the clock.", "轉工或開展副業。時間會暫停。")) : tr(L(`You can look around again at ${s.flags.careerAt + CAREER_GAP}.`, `${s.flags.careerAt + CAREER_GAP} 歲時可以再看看。`))}</p>` : ""}`;
 
   $("#ticker").innerHTML = tickerHTML();
+  $("#shop").innerHTML = shopHTML();
   refreshTip();
   drawScene($("#scene"));
   $("#caption").textContent = tr(sceneCaption());
@@ -1084,6 +1086,7 @@ document.addEventListener("click", e => {
       return closeModal();
     case "theme": setTheme(nextTheme()); break;
     case "portfolio": return openPortfolio();
+    case "buy": return buy(b.dataset.v);
     case "pf-preset": case "pf-pension": case "pf-buy": case "pf-sell": case "pf-cashout": case "pf-save": return portfolioAct(b.dataset.act, b.dataset.v);
     case "exit":
       if (ui.modal && ui.modal.kind === "exit") return;
