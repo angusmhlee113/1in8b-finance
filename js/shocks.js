@@ -298,6 +298,8 @@ function sceneFor(age) {
       return w;
     }
   }
+  const med = medicalScene(age);
+  if (med) return med;
   if (age >= TYPE_AGE + 1 && Math.random() < quietChance()) return QUIET_YEAR;
   const pool = EVENTS.filter(e => age >= e.ages[0] && age <= e.ages[1] && !s.used.has(e.id) && (!e.when || e.when()));
   if (!pool.length) return QUIET_YEAR;

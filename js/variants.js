@@ -6,7 +6,7 @@ function hedgeFundChoice(base) {
   const canFund = s.track === "elite" && s.network >= 55;
   const fundOdds = Math.min(0.8, 0.3 + s.hustle / 400 + s.network / 400);
   return {
-    label: L("Launch your own hedge fund", "成立自己的對沖基金"), sub: UI.odds(fundOdds),
+    label: L("Launch your own hedge fund", "成立自己的對沖基金"), sub: UI.oddsNet(fundOdds, s.network / 400),
     locked: canFund ? null : L("Locked, needs an elite finance career and 55+ network", "未解鎖，需要精英金融事業及 55 以上人脈"),
     run() {
       if (chance(fundOdds)) {

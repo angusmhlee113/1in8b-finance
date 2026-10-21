@@ -15,7 +15,7 @@ const LATE_MILESTONES = [
         choices: [
           { label: L("Teach finance at a university", "到大學教金融"), sub: L("Less money, more meaning", "錢少了，意義多了"), run() { setJob(JOBS.teacher, "normie", 40000 * Math.max(0.3, mult())); s.sanity += 20; s.network += 5; return L("Your students are 19 and think you're ancient. You've never enjoyed work more.", "你的學生 19 歲，覺得你很老。你從未如此享受工作。"); } },
           {
-            label: L("Start your own firm", "開設自己的公司"), sub: UI.odds(startOdds), run() {
+            label: L("Start your own firm", "開設自己的公司"), sub: UI.oddsNet(startOdds, s.network / 300), run() {
               if (chance(startOdds)) { setJob(JOBS.founder, s.track === "degen" ? "degen" : "elite", Math.max(s.income * 1.5, 120000 * sc())); s.network += 10; return L("Your old clients follow you. Your name is on the door, and it's a very nice door.", "舊客戶跟著你走。門上掛著你的名字，而且是一扇非常好看的門。"); }
               s.cash -= Math.max(0, s.cash) * 0.15; s.sanity -= 10;
               return L("You burn through savings for two years before going back to a salaried job. You don't regret trying.", "你燒了兩年積蓄，最後回去打工。你不後悔嘗試過。");

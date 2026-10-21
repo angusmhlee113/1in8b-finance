@@ -25,5 +25,7 @@ const UI = {
   aiBoom: L("🤖 AI boom", "🤖 AI 熱潮"),
   flex: L("Flex", "炫耀"),
   odds: p => L(`Your odds: ~${pct(p)}`, `你的機率：約 ${pct(p)}`),
+  // shows how much of a chance comes from who you know
+  oddsNet: (p, n) => Math.round(n * 100) >= 1 ? L(`Your odds: ~${pct(p)} (network adds ${pct(n)})`, `你的機率：約 ${pct(p)}（人脈加 ${pct(n)}）`) : L(`Your odds: ~${pct(p)}`, `你的機率：約 ${pct(p)}`),
   costs: x => L(`Costs about ${fmt(x)}`, `約需 ${fmt(x)}`),
 };

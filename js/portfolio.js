@@ -70,6 +70,13 @@ function portfolioHTML(m) {
       <div class="presets">${PENSION_RATES.map(r => `<button class="chip ${m.pension === r ? "on" : ""}" data-act="pf-pension" data-v="${r}">${tr(r ? L(`${r * 100}% of pay`, `薪金 ${r * 100}%`) : L("Nothing", "不供"))}</button>`).join("")}</div>
       ${s.pension > 0 ? `<button class="ghost" data-act="pf-cashout">${tr(L(`Cash it out early (you get ${fmt(s.pension * 0.7)} after penalties)`, `提早提取（扣除罰款後得 ${fmt(s.pension * 0.7)}）`))}</button>` : ""}` : ""}
 
+      ${s.age >= 22 ? `<h3 class="end-h">${tr(jgL(L("Health insurance", "醫療保險"), "insurance"))}</h3>
+      <p class="small muted">${tr(publicHealth()
+        ? L("Public healthcare here pays most hospital bills. Insurance would cut what's left even further.", "這裡的公共醫療會支付大部分醫療費用。保險可以再減低你要付的部分。")
+        : L("There's little public healthcare here, so you pay hospital bills yourself unless you're insured.", "這裡的公共醫療很少，除非有保險，否則醫療費用要自己付。"))}</p>
+      <div class="presets">${[...Object.keys(PLANS), "none"].map(id => `<button class="chip ${(s.insurance || "none") === id ? "on" : ""}" data-act="pf-insure" data-v="${id}">${id === "none" ? tr(L("No cover", "不投保")) : `${PLANS[id].emoji} ${tr(PLANS[id].name)} · ${fmt(insurancePremium(id))}/${tr(L("yr", "年"))}`}</button>`).join("")}</div>
+      <p class="small muted">${tr(plan() ? plan().sub : L("You pay every medical bill yourself.", "所有醫療賬單都由你自己付。"))}</p>` : ""}
+
       <h3 class="end-h">${tr(L("Home", "住所"))}</h3>
       ${h ? `<p class="small">${tr(L(`Worth ${fmt(h.value)} · mortgage left ${fmt(h.loan)} at ${pct1(h.rate)} · you pay ${fmt(h.loan > 0 ? h.payment : 0)} a year`, `市值 ${fmt(h.value)} · 尚欠按揭 ${fmt(h.loan)}，利率 ${pct1(h.rate)} · 每年供款 ${fmt(h.loan > 0 ? h.payment : 0)}`))}</p>
         <button class="secondary" data-act="pf-sell">${tr(L(`Sell it (you'd get ${fmt(h.value * 0.95 - h.loan)} after fees)`, `賣出（扣除費用後得 ${fmt(h.value * 0.95 - h.loan)}）`))}</button>`
@@ -92,6 +99,9 @@ function portfolioAct(act, v) {
   } else if (act === "pf-sell" && s.property) {
     const got = sellHome();
     record({ title: L("🏠 You sold your home", "🏠 你賣了樓"), text: L(`After fees and paying off the mortgage, you walk away with ${fmt(got)}. Back to renting.`, `扣除費用並清還按揭後，你拿到 ${fmt(got)}。重新做租客。`), tone: got >= 0 ? "good" : "bad" });
+  } else if (act === "pf-insure" && (s.insurance || "none") !== v) {
+    s.insurance = v === "none" ? null : v;
+    record({ title: plan() ? cat(L("🩺 New health cover: ", "🩺 新醫療保障："), plan().name) : L("🩺 You cancelled your health insurance", "🩺 你取消了醫療保險"), text: plan() ? cat(plan().sub, L(`. It costs ${fmt(insurancePremium())} a year. You hope you never need it.`, `。每年 ${fmt(insurancePremium())}。你希望永遠用不著。`)) : L("One less bill every year. You feel fine. For now.", "每年少一張賬單。你感覺良好，暫時。"), term: "insurance" });
   } else if (act === "pf-cashout" && s.pension > 0) {
     const got = cashOutPension();
     record({ title: L("🏦 You cashed out your pension early", "🏦 你提早提取了退休金"), text: L(`You get ${fmt(got)} after penalties and tax. Retired you will have words with present you.`, `扣除罰款和稅後你拿到 ${fmt(got)}。退休後的你會有話要跟現在的你說。`), tone: "bad", term: "pension" });

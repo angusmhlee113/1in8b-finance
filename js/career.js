@@ -115,7 +115,7 @@ const OFFERS = [
   {
     id: "rival", when: () => onLadder(),
     make() {
-      const pay = Math.round(payNow() * rnd(1.1, 1.3));
+      const pay = Math.round(refBoost() * payNow() * rnd(1.1, 1.3));
       return { label: L("Same job at a rival firm", "到對手公司做同樣的工作"), sub: perYear(pay), run() { s.income = pay; s.network -= 3; s.sanity -= 2; return L("New logo, same spreadsheets, a bigger number at the bottom of your payslip.", "新商標，一樣的試算表，糧單底部的數字更大了。"); } };
     },
   },
@@ -129,49 +129,49 @@ const OFFERS = [
   {
     id: "buyside", when: () => s.track === "elite" && s.network >= 45 && !["pm", "hf", "pe"].includes(jobKey(s.baseJob)),
     make() {
-      const pay = Math.round(Math.max(payNow() * 1.35, 200000 * costScale()));
+      const pay = Math.round(refBoost() * Math.max(payNow() * 1.35, 200000 * costScale()));
       return { label: L("Move to the buy side as a portfolio manager", "轉到買方做投資組合經理"), sub: perYear(pay), run() { setJob(JOBS.pm, "elite", pay); s.sanity -= 6; s.network += 6; return L("You now get pitched instead of pitching. The coffee is better and the stress is worse.", "現在是別人向你推銷，而不是你向別人推銷。咖啡更好，壓力更大。"); } };
     },
   },
   {
     id: "fintech", when: () => s.age <= 50 && s.income > 0 && !s.flags.equity,
     make() {
-      const pay = Math.round(payNow() * 0.75);
+      const pay = Math.round(refBoost() * payNow() * 0.75);
       return { label: L("Join a fintech startup for equity", "加入金融科技初創，換取股權"), sub: cat(perYear(pay), L(" + stock options", " + 認股權")), run() { setJob(JOBS.fintech, "degen", pay); s.flags.equity = { at: s.age + rint(4, 8), pay }; s.sanity += 3; return L("You trade your bonus for options and a hoodie. The founder calls the office a \"campus.\"", "你用花紅換來認股權和一件連帽衫。創辦人把辦公室叫作「園區」。"); } };
     },
   },
   {
     id: "corporate", when: () => s.track !== "normie" || s.sanity < 50,
     make() {
-      const pay = Math.round(payNow() * 0.85);
+      const pay = Math.round(refBoost() * payNow() * 0.85);
       return { label: L("Corporate finance at a big company", "到大公司做企業財務"), sub: cat(perYear(pay), L(", home by six", "，六點放工")), run() { setJob(JOBS.corporate, "normie", pay); s.sanity += 10; s.hustle -= 4; return L("You leave at 6pm on your first day and keep checking if you're in trouble.", "第一天你六點就下班了，然後一直擔心自己是否惹上麻煩。"); } };
     },
   },
   {
     id: "bank", when: () => s.track === "degen" || (s.layoff && !s.layoff.sabbatical),
     make() {
-      const pay = Math.round(Math.max(25000 * mult(), payNow() * 0.7));
+      const pay = Math.round(refBoost() * Math.max(25000 * mult(), payNow() * 0.7));
       return { label: L("Get a stable job at a bank", "到銀行找份穩定工作"), sub: perYear(pay), run() { setJob(JOBS.banker, "normie", pay); s.sanity += 6; return L("You have a pension, a lanyard and a manager called Gary. Your mother is relieved.", "你有退休金、一條職員證掛繩和一個叫 Gary 的經理。媽媽終於放心了。"); } };
     },
   },
   {
     id: "junior", when: () => !!s.layoff && !s.layoff.sabbatical,
     make() {
-      const pay = Math.round(s.layoff.pay * 0.6);
+      const pay = Math.round(refBoost() * s.layoff.pay * 0.6);
       return { label: L("Take a junior role just to get back in", "接受初級職位，先重返行業"), sub: perYear(pay), run() { setJob(s.layoff.job, s.layoff.track, pay); return L("Your new boss is ten years younger than you. You say \"great question\" a lot.", "你的新上司比你年輕十歲。你經常說「好問題」。"); } };
     },
   },
   {
     id: "teach", when: () => s.age >= 38 && jobKey(s.baseJob) !== "teacher",
     make() {
-      const pay = Math.round(40000 * Math.max(0.3, mult()));
+      const pay = Math.round(refBoost() * 40000 * Math.max(0.3, mult()));
       return { label: L("Teach finance at a university", "到大學教金融"), sub: perYear(pay), run() { setJob(JOBS.teacher, "normie", pay); s.sanity += 15; s.network += 3; return L("Your students think DCF is a rapper. You've never been happier at work.", "你的學生以為 DCF 是個饒舌歌手。你從未如此享受工作。"); } };
     },
   },
   {
     id: "unretire", when: () => jobKey(s.baseJob) === "retired" && s.age < 62,
     make() {
-      const pay = Math.round(90000 * costScale());
+      const pay = Math.round(refBoost() * 90000 * costScale());
       return { label: L("Come out of retirement as a consultant", "復出做顧問"), sub: perYear(pay), run() { setJob(JOBS.consultantSelf, "normie", pay); s.sanity -= 4; return L("Retirement lasted until you got bored, which took about six weeks.", "退休維持到你覺得悶為止，大約六個星期。"); } };
     },
   },
@@ -245,7 +245,7 @@ EVENTS.push(
       text: cat(L("Your boss has blocked 30 minutes titled \"Quick chat about your year.\" You've rated yourself \"exceeds expectations\" in every box.", "老闆約了你 30 分鐘，標題是「簡單聊聊你這一年」。你在每一格都給自己評了「超出預期」。")),
       choices: [
         next ? {
-          label: cat(L("Push for ", "爭取升任"), next), sub: UI.odds(odds), run() {
+          label: cat(L("Push for ", "爭取升任"), next), sub: UI.oddsNet(odds, s.network / 400), run() {
             s.sanity -= 5;
             if (chance(odds)) { promote(); s.used.delete("promoreview"); return cat(L("You make your case with a 14-slide deck. It works. You're now ", "你用 14 頁簡報說服了老闆，成功了。你現在是"), s.job, L(".", "。")); }
             if (Math.random() < 0.25) { demote(rnd(0.9, 0.95)); return L("You push too hard. Your boss writes \"lacks self-awareness\" in your review, and your bonus shrinks.", "你逼得太緊。老闆在評核上寫「缺乏自知之明」，你的花紅縮水了。"); }

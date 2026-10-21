@@ -89,6 +89,7 @@ const JOBS = {
   retired: L("Retired", "退休人士"),
   between: L("Between jobs", "待業中"),
   sabbatical: L("On sabbatical", "放長假中"),
+  medleave: L("On medical leave", "病假中"),
 };
 
 const CITIES = [L("New York", "紐約"), L("London", "倫敦"), L("Hong Kong", "香港"), L("Singapore", "新加坡")];

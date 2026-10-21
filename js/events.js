@@ -407,7 +407,7 @@ const EVENTS = [
         "你的經理說你「符合期望」。你認為自己超出期望。"),
       choices: [
         {
-          label: L("Ask for a big raise", "要求大幅加薪"), sub: UI.odds(p), run() {
+          label: L("Ask for a big raise", "要求大幅加薪"), sub: UI.oddsNet(p, s.network / 150), run() {
             if (chance(p)) { s.income *= 1.3; return L("Granted! You're making real money now, by some definitions.", "批准了！以某些定義來說，你現在賺的是真正的錢。"); }
             s.sanity -= 6;
             return L(`"Budgets are tight this year." Your manager's new car is parked outside.`, "「今年預算很緊。」經理的新車就泊在外面。");

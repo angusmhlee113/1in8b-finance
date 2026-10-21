@@ -149,7 +149,7 @@ const MILESTONES = [
           "在金融界，你讀哪間學校，比你在那裡學到甚麼重要得多。"),
         choices: [
           {
-            label: L("Apply to a target school (Ivy / Oxbridge / LSE)", "申請目標名校（常春藤／牛劍／LSE）"), sub: UI.odds(p),
+            label: L("Apply to a target school (Ivy / Oxbridge / LSE)", "申請目標名校（常春藤／牛劍／LSE）"), sub: UI.oddsNet(p, s.network / 400),
             run() {
               s.job = JOBS.student;
               if (chance(p)) {
@@ -446,7 +446,7 @@ const MILESTONES = [
             "入行兩年，獵頭不停打來。人人都說分析師計劃是「很好的跳板」（用來離開）。"),
           choices: [
             {
-              label: L("Jump to private equity", "跳去私募股權"), sub: UI.odds(pe), run() {
+              label: L("Jump to private equity", "跳去私募股權"), sub: UI.oddsNet(pe, s.network / 150), run() {
                 if (chance(pe)) {
                   setJob(JOBS.pe, "elite", 180000); s.sanity -= 5; s.network += 10;
                   return L(`You now "add value" to companies by firing 30% of their staff. Your parents are very proud.`, "你現在靠裁走公司三成員工來「創造價值」。爸媽非常驕傲。");

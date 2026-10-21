@@ -17,8 +17,8 @@ function yearlySpend() {
   const base = 6500 * costScale() * s.prices;
   // with no pay, or in debt, you cut back to the basics, but the house, the kids and the boat still cost what they cost;
   // with no pay and no savings, family and the state keep you fed
-  if (s.income <= 0) return Math.round((s.cash > 0 ? base * 0.6 : 0) + s.upkeep);
-  if (s.cash < 0) return Math.round(Math.min(base, s.income * 0.6) + s.upkeep);
+  if (s.income <= 0) return Math.round((s.cash > 0 ? base * 0.6 : 0) + s.upkeep + healthCost());
+  if (s.cash < 0) return Math.round(Math.min(base, s.income * 0.6) + s.upkeep + healthCost());
   const creep = CREEP[s.type] ?? 0.5;
   let spend = base + creep * Math.max(0, s.income - base);
   // big earners spend like big earners: the bonus goes on the second home, the club fees and the "investment" watches
@@ -27,7 +27,7 @@ function yearlySpend() {
   if (s.flags.married) spend += 4000 * costScale() * s.prices;
   // owners pay a mortgage instead of rent
   if (s.property) spend -= base * 0.4;
-  return Math.round(Math.max(0, spend + s.upkeep));
+  return Math.round(Math.max(0, spend + s.upkeep) + healthCost());
 }
 
 // prices rise every year from 18; poorer and high-inflation countries rise faster until you move or switch to dollars
@@ -70,14 +70,15 @@ function careerYear(year, crashed) {
   if (s.layoff) {
     if (!s.layoff.sabbatical) s.sanity -= 2;
     if (year < s.layoff.back) return;
-    const { job, track, pay, rank, sabbatical } = s.layoff;
+    const { job, track, pay, rank, sabbatical, medical } = s.layoff;
     s.layoff = null;
     // a sabbatical ends with your old job waiting for you
     if (sabbatical) {
       setJob(job, track, pay);
       s.rank = rank || 0;
       refreshJob();
-      s.notes.push({ bad: false, text: L(`🌴 Back from your sabbatical at ${year}, rested and slightly tanned. Your inbox has 4,000 unread emails. You delete them all.`, `🌴 ${year} 歲放完長假回來，精神飽滿，曬黑了一點。郵箱有 4,000 封未讀電郵，你全部刪掉。`) });
+      if (medical) s.notes.push({ bad: false, text: L(`🩺 Back at work at ${year} after a year of medical leave. Your colleagues are kind, and a little careful around you.`, `🩺 ${year} 歲，休養一年後重返工作。同事們很體貼，也對你有點小心翼翼。`) });
+      else s.notes.push({ bad: false, text: L(`🌴 Back from your sabbatical at ${year}, rested and slightly tanned. Your inbox has 4,000 unread emails. You delete them all.`, `🌴 ${year} 歲放完長假回來，精神飽滿，曬黑了一點。郵箱有 4,000 封未讀電郵，你全部刪掉。`) });
       return;
     }
     if (year >= 58 && Math.random() < 0.5) {

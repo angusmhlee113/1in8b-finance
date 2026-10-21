@@ -161,14 +161,15 @@ const creditLabel = c => c >= 750 ? L("Excellent", "極好") : c >= 680 ? L("Goo
 
 // ---------- your whole balance sheet ----------
 
-const netWorth = () => Math.round(s.cash + (s.pension || 0) + homeEquity());
+const netWorth = () => Math.round(s.cash + (s.pension || 0) + homeEquity() - (s.friendDebt || 0));
 
 // at the end of a life the house is sold and the pension is counted; the SEC can't touch a pension
 function closeBooks(kind) {
   if (s.property) { s.cash += homeEquity(); s.property = null; }
   const fine = kind === "sec" ? secPenalty() : 0;
-  s.cash += Math.round(s.pension || 0);
+  s.cash += Math.round(s.pension || 0) - Math.round(s.friendDebt || 0);
   s.pension = 0;
+  s.friendDebt = 0;
   return fine;
 }
 

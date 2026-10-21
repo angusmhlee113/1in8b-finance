@@ -101,6 +101,9 @@ const GLOSSARY = {
   options2: [L("Options trading", "期權交易"),
     L("Paying a small amount for a bet that a share price will go up or down before a deadline. Get it right and you can multiply your money; get it wrong and you lose all of it.", "付少少錢押注股價會在某個期限前上升或下跌。估啱可以賺幾倍，估錯就全部輸晒。"),
     L("You pay $500 betting a share will rise this week. It rises: you might make $3,000. It doesn't: the $500 is gone.", "你付 $500 押注某股本星期會升。升了可能賺 $3,000；不升，$500 就冇晒。")],
+  insurance: [L("Health insurance", "醫療保險"),
+    L("You pay a fixed amount every year, and in return the insurer pays most of your medical bills if you get sick or hurt.", "你每年付一筆固定保費，萬一生病或受傷，保險公司會支付大部分醫療費用。"),
+    L("A $4,000-a-year policy that pays $75,000 of a $100,000 hospital bill.", "每年 $4,000 的保單，在 $100,000 的醫院賬單中替你付 $75,000。")],
   sec: [L("The SEC", "美國證券交易委員會"),
     L("The US government agency that polices the stock market, catches cheaters and can fine people or send them to prison.", "監管美國股市的政府機構，負責捉作弊的人，可以罰款甚至送人入獄。"),
     L("Like a referee for the stock market, with the power to hand out very expensive red cards.", "好似股市的球證，可以出非常昂貴的紅牌。")],
@@ -116,6 +119,7 @@ const TERM_FOR = {
   layoffs: "layoff", aiStart: "bubble", aiEnd: "bubble", "era-crypto": "crypto", bankrun: "bankrun", pandemic: "blackswan",
   flashcrash: "blackswan", rogue: "leverage", hundredx: "compound", password: "index", creditcard: "credit", cosign: "credit",
   poach: "options", grind: "leverage", summer: "leverage",
+  insurance: "insurance", "med-back": "insurance", "med-heart": "insurance", "med-diabetes": "insurance", "med-scan": "insurance", "med-panic": "insurance", "med-knee": "insurance",
 };
 
 const termFor = id => {
@@ -135,7 +139,7 @@ function termHTML(key) {
 
 // a glossary key, or a [title, explanation] pair for labels that aren't glossary terms
 const TIPS = {
-  bond: "bond", index: "index", inflation: "inflation", credit: "credit", mortgage: "mortgage", pension: "pension", cgt: "cgt", sixtyforty: "sixtyforty",
+  insurance: "insurance", bond: "bond", index: "index", inflation: "inflation", credit: "credit", mortgage: "mortgage", pension: "pension", cgt: "cgt", sixtyforty: "sixtyforty",
   spec: [L("Speculative bets", "投機炒賣"), L("Risky investments like crypto, meme stocks and tiny startups. They can multiply your money, or lose most of it in a year.", "高風險投資，例如加密貨幣、爆炒股和細小初創。可以令你的錢翻幾倍，也可以一年內輸掉大部分。")],
   equity: [L("Home equity", "物業淨值"), L("The part of your home you actually own: what it's worth, minus what you still owe the bank.", "你層樓真正屬於你的部分：樓價減去你仲欠銀行的錢。")],
   stocks: [L("Stocks", "股市"), L("Small pieces of companies. This shows how much the stock market went up or down this year.", "公司的一小部分擁有權。這裡顯示今年股市升跌了多少。")],

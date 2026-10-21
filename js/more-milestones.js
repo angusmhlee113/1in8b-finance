@@ -107,7 +107,7 @@ const EXTRA_MILESTONES = [
           text: cat(L("This is the big one. There are three candidates for ", "這是最關鍵的一次。三個候選人爭奪"), title, L(", and one of them is you.", "，而你是其中之一。")),
           choices: [
             {
-              label: L("Campaign for it hard", "全力爭取"), sub: UI.odds(odds), run() {
+              label: L("Campaign for it hard", "全力爭取"), sub: UI.oddsNet(odds, s.network / 200), run() {
                 s.sanity -= 12;
                 if (chance(odds)) { s.income *= 1.5; s.network += 12; takeTitle(title); return cat(L("You got it. ", "你成功升任"), title, L(". Your parents tell everyone. Your hours somehow get longer.", "。爸媽告訴所有人。你的工時不知為何變得更長。")); }
                 s.network -= 6; return L("Someone else gets it. They announce it in an email with three exclamation marks.", "別人得到了這個職位。公佈的電郵有三個感嘆號。");

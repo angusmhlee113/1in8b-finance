@@ -28,7 +28,7 @@ function birth(opts = {}) {
     hustle: clamp(30 + rint(0, 30) + (tier <= 1 ? 15 : 0)),
     sanity: clamp(70 + rint(0, 20)),
     income: 0, upkeep: 0, prices: 1, inflation: 0, sides: [], alloc: null, pension: 0, property: null, credit: null, rate: null,
-    hist: [], promos: [], terms: new Set(), shadow: null, market: null, taxPaid: 0, bought: {}, rank: 0, baseJob: null, job: JOBS.kid, track: null, school: null, score: 0,
+    hist: [], promos: [], terms: new Set(), shadow: null, market: null, taxPaid: 0, bought: {}, favours: {}, friendDebt: 0, boardFee: 0, rank: 0, baseJob: null, job: JOBS.kid, track: null, school: null, score: 0,
     heat: 0, city: null, flags: {}, log: [], used: new Set(),
     risk: 0, type: null, notes: [], ai: null,
     look: makeLook(iso), home: pick(HOMETOWNS[iso]), family: makeFamily(tier, g),
@@ -77,6 +77,7 @@ function advanceTo(age) {
       payYear(year, m);
       homeYear(year, m);
       pensionYear(year, m);
+      networkYear(year);
       bankruptcy(year);
     } else {
       // before you invest, money sits in a savings account your parents opened
@@ -667,6 +668,7 @@ function buildShell() {
         <section class="panel idcard" id="idcard"></section>
         <section class="panel" id="status"></section>
         <section class="panel" id="shop"></section>
+        <section class="panel" id="favours"></section>
       </div>
       <div class="col">
         <section class="panel scene"><canvas id="scene" aria-hidden="true"></canvas><div class="caption" id="caption"></div></section>
@@ -730,7 +732,7 @@ function renderAll() {
     <div class="phead"><h3>${tr(L("Status", "狀態"))}</h3><small>0–100</small></div>
     ${statBar("network", s.network)}${statBar("hustle", s.hustle)}${statBar("sanity", s.sanity)}
     <details><summary>${tr(L("What do these mean?", "這些是甚麼意思？"))}</summary>
-      <p>${tr(L("<b>Network</b> is who you know. It opens doors to schools, jobs and deals.", "<b>人脈</b>是你認識的人，為你打開升學、工作和交易的大門。"))}</p>
+      <p>${tr(L("<b>Network</b> is who you know. It raises your odds for schools, jobs and promotions (look for \"network adds\" on a choice), brings you more deals, can be spent on favours, and from 50 can get you paid board seats. It fades slowly if you never use it.", "<b>人脈</b>是你認識的人。它提高你升學、求職和升職的機率（留意選項上的「人脈加」），為你帶來更多交易，可以用來找人幫忙，50 歲後還可能換來有薪的董事席位。長期不用會慢慢流失。"))}</p>
       <p>${tr(L("<b>Hustle</b> is your drive. It helps you pass exams and win the big bets.", "<b>拼勁</b>是你的衝勁，幫你考試合格、贏下大注。"))}</p>
       <p>${tr(L("<b>Sanity</b> is your mental health. Hit zero and you burn out.", "<b>理智</b>是你的精神健康。跌到零就會燃燒殆盡。"))}</p>
     </details>
@@ -753,6 +755,7 @@ function renderAll() {
 
   $("#ticker").innerHTML = tickerHTML();
   $("#shop").innerHTML = shopHTML();
+  $("#favours").innerHTML = favoursHTML();
   refreshTip();
   drawScene($("#scene"));
   $("#caption").textContent = tr(sceneCaption());
@@ -1087,7 +1090,8 @@ document.addEventListener("click", e => {
     case "theme": setTheme(nextTheme()); break;
     case "portfolio": return openPortfolio();
     case "buy": return buy(b.dataset.v);
-    case "pf-preset": case "pf-pension": case "pf-buy": case "pf-sell": case "pf-cashout": case "pf-save": return portfolioAct(b.dataset.act, b.dataset.v);
+    case "favour": return callFavour(b.dataset.v);
+    case "pf-preset": case "pf-pension": case "pf-insure": case "pf-buy": case "pf-sell": case "pf-cashout": case "pf-save": return portfolioAct(b.dataset.act, b.dataset.v);
     case "exit":
       if (ui.modal && ui.modal.kind === "exit") return;
       ui.prev = ui.modal;
