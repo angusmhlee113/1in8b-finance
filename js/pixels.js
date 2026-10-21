@@ -35,12 +35,24 @@ function seeded(seed) {
 }
 const hashStr = str => [...str].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619), 2166136261);
 
+// 0 under $1M, then one step per extra zero: vest, gold watch, tuxedo, gold suit and top hat
+const wealthLevel = () => s.age < 18 ? 0 : s.cash >= 1e9 ? 4 : s.cash >= 1e8 ? 3 : s.cash >= 1e7 ? 2 : s.cash >= 1e6 ? 1 : 0;
+const GOLD = "#e3b341";
+
 function outfit() {
+  const lvl = wealthLevel();
+  if (lvl === 4) return { body: "#c9a227", shirt: "#fbf6e6", tie: "#111111", hat: true, chain: true };
+  if (lvl === 3) return { body: "#141414", shirt: "#fbfbfb", bow: true, chain: true };
   if (s.age < 15) return { body: s.look.kid };
-  if (s.age < 22 && s.track !== "degen") return { body: s.look.hoodie };
-  if (s.track === "elite") return { body: "#1f2a44", shirt: "#f4f4f4", tie: "#b3262e" };
-  if (s.track === "normie") return { body: "#6b7280", shirt: "#ececec" };
-  return { body: "#18181b", stripe: "#f7931a" };
+  if (s.age < 22 && s.track !== "degen" && lvl === 0) return { body: s.look.hoodie };
+  const base = s.track === "elite" ? { body: "#1f2a44", shirt: "#f4f4f4", tie: "#b3262e" }
+    : s.track === "normie" ? { body: "#6b7280", shirt: "#ececec" }
+    : s.track === "degen" ? { body: "#18181b", stripe: "#f7931a" }
+    : { body: s.look.hoodie };
+  // the Patagonia vest arrives with the first million
+  if (lvl >= 1) base.vest = "#33475c";
+  if (lvl >= 2) base.watch = true;
+  return base;
 }
 
 function drawAvatar(cv) {
@@ -49,18 +61,30 @@ function drawAvatar(cv) {
   const px = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
   const { skin, hair } = s.look;
   const o = outfit();
-  px(0, 0, 16, 16, "#dde8e1");
+  const lvl = wealthLevel();
+  const broke = s.age >= 18 && s.cash < 0;
+  px(0, 0, 16, 16, broke ? "#e6dcdc" : ["#dde8e1", "#dde8e1", "#d6e2ee", "#efe3c2", "#f3d77e"][lvl]);
+  if (lvl === 4) { px(1, 1, 1, 1, "#fff8d6"); px(14, 3, 1, 1, "#fff8d6"); px(2, 10, 1, 1, "#fff8d6"); }
   px(4, 2, 8, 3, hair); px(3, 3, 1, 5, hair); px(12, 3, 1, 5, hair);
   px(4, 5, 8, 6, skin); px(3, 7, 1, 2, skin); px(12, 7, 1, 2, skin);
   px(4, 4, 8, 1, hair);
-  if (s.type === "aggressive" && s.age >= 22) { px(5, 7, 3, 1, "#111"); px(8, 7, 3, 1, "#111"); }
+  // slicked-back shine on rich hair
+  if (lvl >= 2) px(6, 2, 3, 1, "#ffffff55");
+  if (o.hat) { px(5, 0, 6, 3, "#111111"); px(3, 3, 10, 1, "#111111"); px(5, 2, 6, 1, GOLD); }
+  if ((s.type === "aggressive" && s.age >= 22) || lvl >= 2) { px(5, 7, 3, 1, "#111"); px(8, 7, 3, 1, "#111"); }
   else { px(6, 7, 1, 1, "#1d1a19"); px(9, 7, 1, 1, "#1d1a19"); }
-  px(7, 9, 2, 1, "#8a4b3a");
+  if (broke) { px(7, 10, 2, 1, "#8a4b3a"); px(6, 9, 1, 1, "#8a4b3a"); px(9, 9, 1, 1, "#8a4b3a"); }
+  else px(7, 9, 2, 1, "#8a4b3a");
   px(7, 11, 2, 1, skin);
   px(3, 12, 10, 4, o.body);
   if (o.shirt) px(6, 12, 4, 4, o.shirt);
   if (o.tie) px(7, 12, 2, 4, o.tie);
+  if (o.bow) { px(6, 12, 1, 1, "#111"); px(9, 12, 1, 1, "#111"); px(7, 12, 2, 1, "#333"); }
   if (o.stripe) px(3, 13, 10, 1, o.stripe);
+  if (o.vest) { px(3, 12, 3, 4, o.vest); px(10, 12, 3, 4, o.vest); }
+  if (o.chain) { px(6, 13, 1, 1, GOLD); px(7, 14, 2, 1, GOLD); px(9, 13, 1, 1, GOLD); }
+  if (o.watch) px(3, 15, 1, 1, GOLD);
+  if (broke) px(10, 14, 2, 1, "#c9b29b");
 }
 
 // which backdrop fits this point in your life

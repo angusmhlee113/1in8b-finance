@@ -175,7 +175,7 @@ const MILESTONES = [
             run() {
               s.school = "none"; s.track = "degen"; s.job = JOBS.bedroom;
               if (chance(0.45)) {
-                const gain = Math.round(rnd(20000, 250000));
+                const gain = Math.round(rnd(20000, 250000) * reach());
                 s.cash += gain; s.network += 8;
                 return L(`You bought a dog-themed coin at $0.0002. Up ${fmt(gain)}. You are now insufferable online.`,
                   `你在 $0.0002 買入了一隻狗狗幣。賺了 ${fmt(gain)}。你在網上變得令人難以忍受。`);
@@ -204,7 +204,7 @@ const MILESTONES = [
               run() {
                 s.heat += 25;
                 if (chance(0.35)) {
-                  const gain = Math.round(rnd(200000, 2000000));
+                  const gain = Math.round(rnd(200000, 2000000) * reach());
                   s.cash += gain; s.network += 10;
                   return L(`$BRO pumps 4,000%. You "take some chips off the table" (all of the chips). +${fmt(gain)}.`,
                     `$BRO 暴漲 4,000%。你「先套現一部分」（其實是全部）。+${fmt(gain)}。`);
@@ -276,16 +276,18 @@ const MILESTONES = [
       if (!s.score) s.score = (s.school === "target" ? 45 : s.school === "nontarget" ? 12 : 0) + s.c.hub * 7 + s.network / 5;
       const score = Math.round(s.score);
       const m = mult();
+      // global banks rarely sponsor work visas for graduates from far outside the finance hubs
+      const visa = s.c.hub <= 1 && !s.city ? 12 : 0;
       const offers = [
         {
-          need: 65, label: L("Investment Banking Analyst", "投資銀行分析師"), sub: L("$$$, 100-hour weeks", "$$$，每星期 100 小時"),
+          need: 65 + visa, abroad: true, label: L("Investment Banking Analyst", "投資銀行分析師"), sub: L("$$$, 100-hour weeks", "$$$，每星期 100 小時"),
           run() {
             const move = moveToHub(); setJob(JOBS.ib, "elite", 70000); s.sanity -= 15; s.hustle += 5;
             return cat(move, L("Your new company phone now owns your soul. First bonus is in 12 months, if you survive.", "公司配的新手機從此擁有你的靈魂。第一份花紅在 12 個月後，如果你撐得到。"));
           },
         },
         {
-          need: 50, label: L("Sales & Trading Analyst", "銷售及交易分析師"), sub: L("Yell at screens professionally", "專業對住螢幕大叫"),
+          need: 50 + visa, abroad: true, label: L("Sales & Trading Analyst", "銷售及交易分析師"), sub: L("Yell at screens professionally", "專業對住螢幕大叫"),
           run() {
             const move = moveToHub(); setJob(JOBS.trader, "elite", 60000); s.sanity -= 8;
             return cat(move, L(`You yell "BUY" at a screen on day one. It feels incredible.`, "上班第一天你就對著螢幕大叫「買！」。感覺好得難以置信。"));
@@ -308,7 +310,7 @@ const MILESTONES = [
         {
           need: 0, label: L(`Crypto startup ("Goldman, but on-chain")`, "加密貨幣初創（「鏈上版高盛」）"), sub: L("Paid in tokens", "用代幣出糧"),
           run() {
-            setJob(JOBS.crypto, "degen", 10000); s.heat += 5;
+            setJob(JOBS.crypto, "degen", 10000 * reach()); s.heat += 5;
             return L("Your salary is mostly tokens. The tokens are mostly vibes.", "你的人工大部分是代幣，而代幣大部分是感覺。");
           },
         },
@@ -316,7 +318,7 @@ const MILESTONES = [
       if (s.flags.influencer) offers.push({
         need: 0, label: L("Full-time finfluencer", "全職財經網紅"), sub: L("Courses, affiliate links, a ring light", "網上課程、推廣連結、一盞環形燈"),
         run() {
-          setJob(JOBS.finfluencer, "degen", rnd(10000, 90000)); s.network += 5;
+          setJob(JOBS.finfluencer, "degen", rnd(10000, 90000) * reach()); s.network += 5;
           return L("You launch a $997 course on how to get rich by selling courses.", "你推出一個 $997 的課程，教人如何靠賣課程致富。");
         },
       });
@@ -324,7 +326,12 @@ const MILESTONES = [
         title: L("The job offers are in", "工作邀約來了"),
         text: L(`Your recruiting score is <b>${score}</b>. The best jobs are only open to the people the industry already likes.`,
           `你的招聘分數是 <b>${score}</b>。最好的工作只留給這個行業本來就喜歡的人。`),
-        choices: offers.map(o => ({ ...o, locked: score < o.need ? L(`Locked, needs a recruiting score of ${o.need}`, `未解鎖，需要招聘分數 ${o.need}`) : null })),
+        choices: offers.map(o => ({
+          ...o,
+          locked: score >= o.need ? null : o.abroad && visa
+            ? L(`Locked, needs a recruiting score of ${o.need} (it includes getting a work visa)`, `未解鎖，需要招聘分數 ${o.need}（已計入申請工作簽證的難度）`)
+            : L(`Locked, needs a recruiting score of ${o.need}`, `未解鎖，需要招聘分數 ${o.need}`),
+        })),
       };
     },
   },
@@ -401,7 +408,7 @@ const MILESTONES = [
           {
             label: L("100x leverage on a coin you heard about 4 minutes ago", "用 100 倍槓桿買一隻 4 分鐘前才聽過的幣"), sub: L("YOLO", "搏一鋪"), run() {
               if (chance(0.3)) {
-                const gain = Math.max(50000, s.cash * 1.5); s.cash += gain;
+                const gain = Math.max(50000 * reach(), s.cash * 1.5); s.cash += gain;
                 return L(`Your liquidation price was a cent away. You made ${fmt(gain)} and learned nothing.`, `距離爆倉價只差一仙。你賺了 ${fmt(gain)}，甚麼也沒學到。`);
               }
               const loss = Math.max(20000, s.cash * 0.7); s.cash -= loss; s.sanity -= 15;
@@ -478,7 +485,7 @@ const MILESTONES = [
             {
               label: L("Grind out the full CFA", "咬緊牙關考完 CFA"), sub: UI.odds(cfa), run() {
                 if (chance(cfa)) {
-                  setJob(JOBS.pm, "normie", 40000 + 60000 * mult()); s.network += 10;
+                  setJob(JOBS.pm, "normie", 100000 * mult()); s.network += 10;
                   return L("You're a CFA charterholder now. It goes in your email signature. Forever.", "你現在是 CFA 持證人了。這會永遠留在你的電郵簽名裡。");
                 }
                 s.sanity -= 15;
@@ -495,7 +502,7 @@ const MILESTONES = [
             {
               label: L("Become a LinkedIn thought leader", "成為 LinkedIn 思想領袖"), sub: L("Agree?", "同意嗎？"),
               run() {
-                s.network += 20; s.sanity -= 5; s.income += 10000;
+                s.network += 20; s.sanity -= 5; s.income += 10000 * sc();
                 return L(`Your post "What my dog taught me about B2B SaaS" gets 40k likes. Agree?`, "你的帖文《我的狗教會我的 B2B SaaS 道理》獲得 4 萬個讚。同意嗎？");
               },
             },
@@ -510,14 +517,14 @@ const MILESTONES = [
           {
             label: L("Raise a fund from your followers", "向粉絲集資成立基金"), sub: L("What could go wrong", "會出甚麼事呢"),
             run() {
-              s.heat += 20; setJob(JOBS.cryptoGp, "degen", rnd(50000, 600000)); s.network += 10;
+              s.heat += 20; setJob(JOBS.cryptoGp, "degen", rnd(50000, 600000) * reach()); s.network += 10;
               return L(`You raise $40M from people who call you "king" in the comments. The due diligence was a poll.`, "你從一班在留言區叫你「皇上」的人手上籌得 $4,000 萬。盡職審查是一個投票。");
             },
           },
           {
             label: L("Rebrand everything as AI", "把一切重新包裝成 AI"), sub: L("Narrative is everything", "故事就是一切"), run() {
               if (chance(0.4)) {
-                const gain = Math.round(rnd(1e6, 1e7)); s.cash += gain;
+                const gain = Math.round(rnd(1e6, 1e7) * reach()); s.cash += gain;
                 return L(`Your token is now an "AI agent." Number goes up. +${fmt(gain)}.`, `你的代幣現在是「AI 代理」了。數字上升。+${fmt(gain)}。`);
               }
               s.cash -= 30000;
@@ -546,7 +553,7 @@ const MILESTONES = [
           {
             label: L("Load up on $ACME call options", "大手買入 $ACME 認購期權"), sub: L("Totally legal, probably", "應該完全合法吧"),
             run() {
-              const gain = Math.max(80000, s.cash * 0.4); s.cash += gain; s.heat += 45;
+              const gain = Math.max(80000 * reach(), s.cash * 0.4); s.cash += gain; s.heat += 45;
               return L(`$ACME jumps 60% on merger news. You made ${fmt(gain)}. Your phone buzzes. It's just Uber Eats. This time.`,
                 `$ACME 因合併消息急升 60%。你賺了 ${fmt(gain)}。電話震了一下，只是外賣到了。這一次是。`);
             },

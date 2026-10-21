@@ -195,7 +195,7 @@ const EVENTS = [
       {
         label: L("Copy his trades", "跟他落單"), sub: L("He seems legit", "他看起來很正經"), run() {
           if (chance(0.35)) {
-            const g = Math.max(20000, s.cash); s.cash += g; s.network += 8;
+            const g = Math.max(20000 * reach(), s.cash); s.cash += g; s.network += 8;
             return L(`He was legit (this time). +${fmt(g)}.`, `他是真的（這一次）。+${fmt(g)}。`);
           }
           const l = Math.max(5000, s.cash * 0.5); s.cash -= l;
@@ -233,7 +233,7 @@ const EVENTS = [
       {
         label: L("Launch it", "發售"), sub: L("Number go up?", "數字會升嗎？"), run() {
           if (chance(0.3)) {
-            const g = Math.round(rnd(3e5, 4e6)); s.cash += g; s.heat += 10;
+            const g = Math.round(rnd(3e5, 4e6) * reach()); s.cash += g; s.heat += 10;
             return L(`Sold out in 4 minutes! ${fmt(g)}. A celebrity makes one her profile picture.`, `4 分鐘內售罄！${fmt(g)}。一位明星把其中一隻設為頭像。`);
           }
           s.cash -= 15000;

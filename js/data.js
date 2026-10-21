@@ -113,6 +113,8 @@ const wrongName = () => pick(["Kyle", "Chad", "Brad", "Tanner", "Greg"].filter(n
 
 const pct = p => Math.round(Math.max(0, p) * 100) + "%";
 const mult = () => PAY_MULT[s.c.g];
+// how far a crypto or influencer hustle reaches from where you live: less local money and audience in poorer countries
+const reach = () => Math.max(0.3, mult());
 const inBoom = () => s.age > s.ai.start && s.age < s.ai.end;
 
 function weightedIdx(ws) {

@@ -12,13 +12,15 @@ function makeFamily(tier, g) {
   };
 }
 
-function birth() {
-  const [name, flag, pop, g, hub, iso] = COUNTRIES[weightedIdx(COUNTRIES.map(c => c[2]))];
+// opts.ci and opts.tier fix the birth country and family, for simulating lives that start like yours
+function birth(opts = {}) {
+  const ci = opts.ci ?? weightedIdx(COUNTRIES.map(c => c[2]));
+  const [name, flag, pop, g, hub, iso] = COUNTRIES[ci];
   const t = g / 4;
   const poor = [55, 30, 11, 3, 0.9, 0.1], rich = [8, 25, 35, 20, 10, 2];
-  const tier = weightedIdx(poor.map((v, i) => v + (rich[i] - v) * t));
+  const tier = opts.tier ?? weightedIdx(poor.map((v, i) => v + (rich[i] - v) * t));
   s = {
-    age: 0, c: { name, flag, pop, g, hub, iso }, tier,
+    age: 0, ci, c: { name, flag, pop, g, hub, iso }, tier,
     cash: Math.round(FAMILY[tier].cash * (0.2 + 0.2 * g)),
     network: clamp(tier * 12 + hub * 8 + rint(0, 10)),
     hustle: clamp(30 + rint(0, 30) + (tier <= 1 ? 15 : 0)),
@@ -54,7 +56,7 @@ function advanceTo(age) {
         s.cash *= 1 + gain;
         s.notes.push({ bad: false, text: L(`📈 Melt-up year at ${year}: markets went vertical. Your portfolio rose ${pct(gain)}.`, `📈 ${year} 歲狂飆年：市場直線飆升。你的投資組合上升 ${pct(gain)}。`) });
       } else {
-        s.cash *= 1 + Math.max(-0.5, t.ret + t.vol * gauss());
+        s.cash *= 1 + Math.max(-0.5, t.ret + t.vol * gauss() - currencyDrag());
       }
       if (s.ai.exposure > 0 && s.age >= s.ai.start && s.age < s.ai.end) {
         const gain = s.ai.exposure * rnd(0.1, 0.4) * t.swing;
@@ -76,6 +78,10 @@ function advanceTo(age) {
 function setType() {
   s.type = s.risk >= 2 ? "aggressive" : s.risk <= -2 ? "passive" : "balanced";
 }
+
+// savings kept in a weaker home currency lose value every year, until you move to a finance hub
+const DRAG = [0.06, 0.04, 0.015, 0, 0];
+const currencyDrag = () => s.city ? 0 : DRAG[s.c.g];
 
 const record = entry => s.record.push({ age: s.age, ...entry });
 
@@ -217,8 +223,48 @@ function finish(kind) {
     s.cash -= fine;
   }
   ui.queue = [];
-  ui.modal = { kind: "ending", e: { kind, fine } };
+  ui.modal = { kind: "ending", e: { kind, fine, compare: compareStarts() } };
   ui.aside = false;
+}
+
+// plays one whole life with random choices from a fixed starting point, for comparison
+function simulateLife(ci, tier) {
+  birth({ ci, tier });
+  while (s.age < END_AGE - 1) {
+    const age = s.age + 1;
+    advanceTo(age);
+    s.notes = [];
+    if (s.sanity <= 0) break;
+    if (age < TYPE_AGE) {
+      if (MILESTONE_AT[age]) pick(MILESTONE_AT[age].build().choices).run();
+      continue;
+    }
+    if (!s.type) setType();
+    const def = sceneFor(age);
+    if (def.pre && def.pre()) { s.cash -= Math.max(0, s.cash * 0.9); break; }
+    const st = def.build();
+    const before = s.cash;
+    rolled = false;
+    if (st.passive) st.run(); else pick(st.choices.filter(c => !c.locked)).run();
+    const t = typeOf();
+    if (rolled && t) s.cash += (s.cash - before) * (t.swing - 1);
+    fix();
+    if (s.sanity <= 0) break;
+  }
+  if (s.sanity > 0) advanceTo(END_AGE);
+  return s.cash;
+}
+
+const LUCKY = { ci: COUNTRIES.findIndex(c => c[5] === "USA"), tier: 4 };
+const median = xs => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+
+function compareStarts() {
+  const me = s, wasRolled = rolled;
+  const same = Array.from({ length: 200 }, () => simulateLife(me.ci, me.tier));
+  const lucky = Array.from({ length: 120 }, () => simulateLife(LUCKY.ci, LUCKY.tier));
+  s = me;
+  rolled = wasRolled;
+  return { beat: same.filter(x => x < s.cash).length / same.length, sameMedian: median(same), luckyMedian: median(lucky) };
 }
 
 function startLife() {
@@ -368,9 +414,129 @@ function shareText(e) {
   const pctStr = richPct();
   const t = typeOf();
   const fam = FAMILY[s.tier].name;
+  const beat = Math.round(e.compare.beat * 100);
+  const url = gameURL();
   return tr(L(
-    `${playerName}, "${title.en}": born in ${s.c.flag} ${s.c.name.en} (${fam.en.toLowerCase()}), ${t ? `played as ${t.emoji} ${t.name.en}, ` : ""}finished at age ${s.age} with ${fmt(s.cash)}, richer than ${pctStr}% of adults on Earth. #1in8billion`,
-    `${playerName}「${title.zh}」：生於 ${s.c.flag} ${s.c.name.zh}（${fam.zh}），${t ? `${t.emoji} ${t.name.zh}，` : ""}${s.age} 歲時身家 ${fmt(s.cash)}，比地球上 ${pctStr}% 的成年人更富有。#80億分之一`));
+    `${playerName}, "${title.en}": born in ${s.c.flag} ${s.c.name.en} (${fam.en.toLowerCase()}), ${t ? `played as ${t.emoji} ${t.name.en}, ` : ""}finished at age ${s.age} with ${fmt(s.cash)}, richer than ${pctStr}% of adults on Earth and ahead of ${beat}% of lives that started like mine. #1in8billion${url ? " " + url : ""}`,
+    `${playerName}「${title.zh}」：生於 ${s.c.flag} ${s.c.name.zh}（${fam.zh}），${t ? `${t.emoji} ${t.name.zh}，` : ""}${s.age} 歲時身家 ${fmt(s.cash)}，比地球上 ${pctStr}% 的成年人更富有，並勝過 ${beat}% 起點相同的人生。#80億分之一${url ? " " + url : ""}`));
+}
+
+// the address to share, when the game is running on a real website
+const gameURL = () => location.protocol.startsWith("http") && location.hostname !== "localhost" ? location.origin + location.pathname : "";
+
+function compareHTML(c) {
+  const beat = Math.round(c.beat * 100);
+  const fam = FAMILY[s.tier].name;
+  return `<div class="rank compare">
+    <div>${tr(L(`You did better than <strong>${beat}%</strong> of 200 simulated lives that started exactly like yours (${s.c.flag} ${s.c.name.en}, ${fam.en.toLowerCase()}).`,
+      `在 200 個起點與你完全相同（${s.c.flag} ${s.c.name.zh}，${fam.zh}）的模擬人生中，你勝過了 <strong>${beat}%</strong>。`))}</div>
+    <div class="muted small">${tr(L(`Their median ending: ${fmt(c.sameMedian)}. A median life born rich in the United States: ${fmt(c.luckyMedian)}.`,
+      `他們的結局中位數：${fmt(c.sameMedian)}。在美國富裕家庭出生的人生中位數：${fmt(c.luckyMedian)}。`))}</div>
+  </div>`;
+}
+
+const canShareFiles = () => !!(navigator.canShare && navigator.share);
+
+const MAP_COLORS = { plain: "#cfe0d5", good: "#6cbf8d", great: "#0b7a4b", bad: "#d9534f", swan: "#17181c", future: "#e7e4dc" };
+
+// wraps text onto lines that fit a width, by words in English and by characters in Chinese
+function wrapLines(g, text, width) {
+  const parts = lang === "zh" ? [...text] : text.split(" ");
+  const sep = lang === "zh" ? "" : " ";
+  const lines = [];
+  let line = "";
+  for (const p of parts) {
+    const test = line ? line + sep + p : p;
+    if (g.measureText(test).width > width && line) { lines.push(line); line = p; } else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// a portrait card summing up the whole life, to save or share
+function drawEndCard(e) {
+  const W = 540, H = 780, k = 2;
+  const cv = document.createElement("canvas");
+  cv.width = W * k; cv.height = H * k;
+  const g = cv.getContext("2d");
+  g.scale(k, k);
+  const sans = `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif`;
+  const serif = `Georgia, "Times New Roman", "Noto Serif TC", "PMingLiU", serif`;
+  const mono = `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+  const { emoji, title } = endingInfo(e);
+  const t = typeOf();
+
+  g.fillStyle = "#f7f6f2"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#0f3d26"; g.fillRect(0, 0, W, 64);
+  g.fillStyle = "#ffffff"; g.font = `700 24px ${serif}`; g.textBaseline = "middle";
+  g.fillText(tr(L("1 in 8 Billion", "80 億分之一")), 28, 33);
+  g.fillStyle = "#9fd8b8"; g.font = `700 12px ${mono}`; g.textAlign = "right";
+  g.fillText(tr(L("FINANCE BRO", "金融佬")), W - 28, 34);
+  g.textAlign = "left";
+
+  // the pixel avatar, scaled up without blurring
+  const av = document.createElement("canvas");
+  drawAvatar(av);
+  g.imageSmoothingEnabled = false;
+  g.drawImage(av, 28, 92, 112, 112);
+  g.strokeStyle = "#e0ddd4"; g.lineWidth = 2; g.strokeRect(28, 92, 112, 112);
+
+  g.textBaseline = "alphabetic";
+  g.fillStyle = "#17181c"; g.font = `700 28px ${serif}`;
+  g.fillText(playerName, 164, 124);
+  g.fillStyle = "#6a6b74"; g.font = `500 15px ${sans}`;
+  g.fillText(`${s.c.flag} ${tr(s.c.name)} · ${tr(FAMILY[s.tier].name)}`, 164, 154);
+  g.fillText(`${t ? `${t.emoji} ${tr(t.name)} · ` : ""}${tr(UI.age(s.age))} · ${tr(s.job)}`, 164, 180);
+
+  g.font = `52px ${sans}`;
+  g.fillText(emoji, 28, 286);
+  g.fillStyle = "#17181c"; g.font = `700 32px ${serif}`;
+  const lines = wrapLines(g, tr(title), W - 128);
+  lines.slice(0, 2).forEach((ln, i) => g.fillText(ln, 98, 270 + i * 38));
+  let y = 270 + Math.min(2, lines.length) * 38 + 44;
+
+  g.fillStyle = s.cash < 0 ? "#c23a2b" : "#0b7a4b"; g.font = `800 56px ${mono}`;
+  g.fillText(fmt(s.cash), 28, y);
+  y += 40;
+  g.fillStyle = "#17181c"; g.font = `600 17px ${sans}`;
+  g.fillText(tr(L(`Richer than ${richPct()}% of adults on Earth`, `比地球上 ${richPct()}% 的成年人更富有`)), 28, y);
+  y += 28;
+  g.fillStyle = "#6a6b74"; g.font = `500 16px ${sans}`;
+  g.fillText(tr(L(`Ahead of ${Math.round(e.compare.beat * 100)}% of lives that started like mine`, `勝過 ${Math.round(e.compare.beat * 100)}% 起點相同的人生`)), 28, y);
+
+  // the life map: one square per year
+  y += 34;
+  g.fillStyle = "#6a6b74"; g.font = `700 11px ${mono}`;
+  g.fillText(tr(L("LIFE MAP · 1 SQUARE = 1 YEAR", "人生地圖 · 1 格 = 1 年")), 28, y);
+  y += 12;
+  const size = 26, gap = 6;
+  for (let a = 0; a < END_AGE; a++) {
+    const tone = yearTone(a).split(" ")[0];
+    g.fillStyle = MAP_COLORS[tone] || MAP_COLORS.plain;
+    g.fillRect(28 + (a % 15) * (size + gap), y + Math.floor(a / 15) * (size + gap), size, size);
+  }
+
+  // footer sits just under the map, and the card is trimmed to that height
+  const end = y + 3 * (size + gap) + 44;
+  g.fillStyle = "#9a9ba6"; g.font = `500 13px ${sans}`;
+  const url = gameURL().replace(/^https?:\/\//, "");
+  g.fillText(url || tr(L("1 in 8 Billion: Finance Bro", "80 億分之一：金融佬")), 28, end - 22);
+  g.textAlign = "right";
+  g.fillText(tr(L("#1in8billion", "#80億分之一")), W - 28, end - 22);
+  const out = document.createElement("canvas");
+  out.width = W * k; out.height = Math.min(H, end) * k;
+  out.getContext("2d").drawImage(cv, 0, 0);
+  return out.toDataURL("image/png");
+}
+
+async function shareCard(e) {
+  const blob = await (await fetch(drawEndCard(e))).blob();
+  const file = new File([blob], "1in8billion-ending.png", { type: "image/png" });
+  const data = { text: shareText(e), files: [file] };
+  try {
+    if (navigator.canShare(data)) await navigator.share(data);
+    else await navigator.share({ text: shareText(e) });
+  } catch {}
 }
 
 function richPct() {
@@ -599,6 +765,9 @@ function renderModal() {
           <div class="fact"><dt>${tr(L("Family", "家庭"))}</dt><dd>${tr(FAMILY[s.tier].name)}</dd></div>
           <div class="fact"><dt>${tr(L("Family money", "家庭資產"))}</dt><dd>${fmt(s.cash)}</dd></div>
           <div class="fact"><dt>${tr(L("Finance hub?", "金融中心？"))}</dt><dd>${tr(HUB_LABEL[hub])}</dd></div>
+          <div class="fact"><dt>${tr(L("Savings vs. local currency", "儲蓄與本地貨幣"))}</dt><dd>${tr(currencyDrag()
+            ? L(`Lose ${Math.round(currencyDrag() * 100)}% a year until you move abroad`, `每年貶值 ${Math.round(currencyDrag() * 100)}%，直至移居海外`)
+            : L("Holds its value", "保值"))}</dd></div>
         </dl>
         <p class="flavor">${tr(flavor)}</p>
         <p class="hint">${tr(L("Your life now plays out a year at a time. It pauses whenever you need to decide something. Use the speed buttons to go faster.", "你的人生會一年一年地展開，遇到需要你決定的事就會暫停。可以用速度按鈕加快。"))}</p>
@@ -673,6 +842,7 @@ function renderModal() {
       ? L(`That puts you in roughly the <strong>top 1 in ${top}</strong>.`, `大約是<strong>每 ${top} 人之中最富有的一個</strong>。`)
       : L("Most adults on Earth have more than you. The finance bro dream doesn't always survive contact with reality.", "地球上大部分成年人都比你有錢。金融佬的夢想不一定敵得過現實。");
     const t = typeOf();
+    const card = drawEndCard(m.e);
     body = `${modalHead(L("Game over", "遊戲結束"))}
       <div class="mbody">
         <div class="end-emoji">${emoji}</div>
@@ -684,7 +854,16 @@ function renderModal() {
           <div>${tr(L(`You're richer than <strong>${pctStr}%</strong> of adults on Earth.`, `你比地球上 <strong>${pctStr}%</strong> 的成年人更富有。`))}</div>
           <div class="muted small">${tr(rankLine)}</div>
         </div>
-        <button class="primary" data-act="again">${tr(L(`Be born again as ${nm()} →`, `以 ${nm()} 的身份再投胎 →`))}</button>
+        ${compareHTML(m.e.compare)}
+        <h3 class="end-h">${tr(L("The others born in the same second", "同一秒出生的其他人"))}</h3>
+        <div class="epilogue">${s.peers.map(p => `<div class="peer ${p.diesAt !== null ? "gone" : ""}">
+          <div><b>${esc(p.name)}</b><small>${p.flag} ${tr(p.country)}</small></div>
+          <span>${tr(p.diesAt !== null ? peerStatus(p, END_AGE) : cat(L("at 45: ", "45 歲："), peerStatus(p, END_AGE)))}</span></div>`).join("")}</div>
+        <h3 class="end-h">${tr(L("Your ending card", "你的結局卡"))}</h3>
+        <img class="shot endshot" src="${card}" alt="${tr(L("Ending card with your result", "顯示你結局的卡片"))}">
+        <a class="primary save" href="${card}" download="1in8billion-ending.png">${tr(L("📸 Save ending card", "📸 儲存結局卡"))}</a>
+        ${canShareFiles() ? `<button class="secondary" data-act="share">${tr(L("Share…", "分享……"))}</button>` : ""}
+        <button class="secondary" data-act="again">${tr(L(`Be born again as ${nm()} →`, `以 ${nm()} 的身份再投胎 →`))}</button>
         <button class="secondary" data-act="copy">${tr(L("Copy my result", "複製我的結果"))}</button>
         <button class="secondary" data-act="rename">${tr(L("Start over with a different name", "用另一個名字重新開始"))}</button>
         <p class="footnote">${tr(L("Your whole life is in the life record and life map behind this box. Birth odds are weighted by the population of 34 countries. Wealth percentiles are rough estimates based on published global wealth distributions. Not financial advice, obviously.",
@@ -804,6 +983,7 @@ document.addEventListener("click", e => {
     case "flex": return postGains();
     case "again": return startLife();
     case "rename": return drawStart();
+    case "share": shareCard(ui.modal.e); return;
     case "copy":
       navigator.clipboard.writeText(shareText(ui.modal.e))
         .then(() => { b.textContent = tr(L("Copied!", "已複製！")); })
