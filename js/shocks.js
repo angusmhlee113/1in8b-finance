@@ -3,6 +3,7 @@
 const AI_START = {
   build() {
     const career = isCareer();
+    (s.flags.erasSeen ||= {}).ai = true;
     return {
       title: L("🤖 The AI boom begins", "🤖 AI 熱潮開始"),
       text: L(`A chatbot launch changes everything. Chip stocks triple in a year. Every company says "AI" on its earnings call. Is this the internet, or is it tulips?`,
@@ -33,7 +34,7 @@ const AI_START = {
 const AI_END = {
   build() {
     return {
-      title: L("🤖 Bubble or new era?", "🤖 泡沫還是新紀元？"),
+      title: L("🤖 Bubble or new era?", "🤖 泡沫還是新紀元？"), big: true,
       text: L("After years of AI euphoria, the reckoning arrives. Everyone finds out whether the boom was real.",
         "經過多年的 AI 狂熱，清算的時刻終於來臨。所有人都會知道這個熱潮是不是真的。"),
       passive: true,
@@ -45,17 +46,21 @@ const AI_END = {
         if (Math.random() < 0.5) {
           const drop = Math.min(0.8, exp * 0.55 * t.crash);
           s.cash -= base * drop;
+          // going all in, or chasing the top, right before the bubble pops
+          if (drop > 0 && (exp >= 0.9 || s.flags.aiFomo)) leekMoment(L("Bought the AI top", "AI 高位接貨"), base * drop);
           out = exp
             ? L(`The bubble pops. AI stocks fall 70%. Your portfolio loses ${pct(drop)}.`, `泡沫爆破。AI 股下跌七成。你的投資組合損失 ${pct(drop)}。`)
             : L(`The bubble pops, and AI stocks fall 70%. You sat it out, so you lose nothing and say "I told you so" for a decade.`, "泡沫爆破，AI 股下跌七成。你沒有參與，所以分毫無損，之後十年都在說「我早就講過」。");
           if (s.flags.aiEquity) out = cat(out, L(" Your startup equity is now worth nothing.", "你的初創股權現在一文不值。"));
         } else {
           const gain = exp * 0.5;
+          if (exp) (s.flags.erasWon ||= {}).ai = true;
           s.cash += base * gain;
           out = exp
             ? L(`It wasn't a bubble. AI keeps eating the world, and your portfolio rises another ${pct(gain)}.`, `這不是泡沫。AI 繼續吞噬世界，你的投資組合再升 ${pct(gain)}。`)
             : L("It wasn't a bubble. AI keeps eating the world. You missed it entirely. You'll be thinking about this one for a while.", "這不是泡沫。AI 繼續吞噬世界，而你完全錯過了。這件事你會想很久。");
           if (s.flags.aiEquity) {
+            s.flags.aiPaid = true;
             const g = Math.round(rnd(2e6, 4e7)); s.cash += g;
             out = cat(out, L(` Your AI startup goes public, and your equity is worth ${fmt(g)}.`, `你的 AI 初創上市了，你的股權價值 ${fmt(g)}。`));
           }
@@ -68,7 +73,7 @@ const AI_END = {
 };
 
 EVENTS.push(
-  ev("aijob", [22, 44], () => inBoom() && isCareer(), () => ({
+  ev("aijob", [22, 64], () => inBoom() && isCareer(), () => ({
     title: L("An AI startup wants you", "一間 AI 初創想請你"),
     text: L("Half your salary, plus equity in a company that has no revenue and a $4 billion valuation.",
       "人工減半，外加一間零收入但估值 $40 億公司的股權。"),
@@ -83,12 +88,12 @@ EVENTS.push(
       { label: L("Decline", "拒絕"), sub: L("Keep the steady paycheck", "保住穩定的人工"), run() { return L("You stay put. You check the startup's valuation every week for the rest of your life.", "你留在原地。之後一生你每個星期都會查那間初創的估值。"); } },
     ],
   })),
-  ev("chipstock", [22, 44], inBoom, () => ({
+  ev("chipstock", [22, 64], inBoom, () => ({
     title: L("Your neighbor's chip stock", "鄰居的晶片股"),
     text: L("He put his kid's college fund into an AI chip company. It's up 900%. He has bought a jet ski.",
       "他把孩子的大學基金全買了一間 AI 晶片公司。升了 900%。他買了一架水上電單車。"),
     choices: [
-      { label: L("Buy in now", "現在買入"), sub: L("It can't keep going… can it?", "不會一直升的……吧？"), run() { s.ai.exposure = Math.min(1, s.ai.exposure + 0.3); return L("You buy near the top, probably. Your AI exposure goes up.", "你大概買在接近頂部。你的 AI 持倉增加了。"); } },
+      { label: L("Buy in now", "現在買入"), sub: L("It can't keep going… can it?", "不會一直升的……吧？"), run() { s.ai.exposure = Math.min(1, s.ai.exposure + 0.3); s.flags.aiFomo = true; return L("You buy near the top, probably. Your AI exposure goes up.", "你大概買在接近頂部。你的 AI 持倉增加了。"); } },
       {
         label: L("Take profits on your AI stocks", "AI 股獲利回吐"), sub: L("Lock it in", "鎖定利潤"),
         locked: s.ai.exposure > 0 ? null : L("Locked, you don't own any AI stocks", "未解鎖，你沒有持有任何 AI 股"),
@@ -97,7 +102,7 @@ EVENTS.push(
       { label: L("Ignore it", "不理它"), sub: L("Jet skis depreciate", "水上電單車會貶值"), run() { s.sanity += 2; return L("You remind yourself that a jet ski is not a retirement plan.", "你提醒自己，水上電單車不是退休計劃。"); } },
     ],
   })),
-  ev("agents", [24, 44], () => inBoom() && isCareer(), () => ({
+  ev("agents", [24, 64], () => inBoom() && isCareer(), () => ({
     title: L("The AI agents arrive", "AI 代理來了"),
     text: L(`Your firm rolls out AI agents that build models and write decks. Half the analyst class is "redeployed."`,
       "公司推出能建模和寫簡報的 AI 代理。一半分析師被「重新調配」。"),
@@ -108,7 +113,7 @@ EVENTS.push(
       return L("You survive by becoming the person who checks the AI's work. Mostly you fix its math.", "你靠做那個檢查 AI 工作的人倖存下來。大部分時間你在改它的數。");
     },
   })),
-  ev("datacenter", [27, 44], () => inBoom() && s.cash > 500000, () => ({
+  ev("datacenter", [27, 64], () => inBoom() && s.cash > 500000, () => ({
     title: L("The data center deal", "數據中心項目"),
     text: L("A friend is raising money to build a data center. AI companies are begging for computing power.",
       "一個朋友正在集資興建數據中心。AI 公司都在求算力。"),
@@ -123,7 +128,7 @@ EVENTS.push(
       { label: L("Pass", "不投"), sub: L("Concrete isn't your thing", "石屎不是你的專長"), run() { return L("You pass. Seven more data centers open in the next town over.", "你放棄了。隔離鎮再開了七個數據中心。"); } },
     ],
   })),
-  ev("agi", [22, 44], inBoom, () => ({
+  ev("agi", [22, 64], inBoom, () => ({
     title: L("AGI at the dinner party", "飯局上的 AGI"),
     text: L("Someone at dinner says superintelligence is two years away. Someone else says it's already here and working at their company.",
       "飯局上有人說超級智能兩年內就會出現。另一個人說它已經來了，而且在他公司上班。"),
@@ -132,9 +137,63 @@ EVENTS.push(
   })),
 );
 
+// ---------- the index fund you forgot about at 16 ----------
+
+const PASSWORD_FOUND = {
+  id: "password",
+  build() {
+    const { amount, value } = s.locked;
+    return {
+      title: L("🔑 \"Reset your password?\"", "🔑 「要重設密碼嗎？」"),
+      text: L(`Clearing out an old email account, you find a statement from a fund you'd completely forgotten. The ${fmt(amount)} you put into the S&P 500 as a teenager has been sitting there, untouched, the whole time.`,
+        `清理舊電郵戶口時，你發現一份來自某個基金的結單，你早已完全忘記了它。你少年時放進標普 500 的 ${fmt(amount)}，一直原封不動地放在那裡。`),
+      passive: true, big: true,
+      run() {
+        s.cash += value;
+        s.locked = null;
+        s.sanity += 8;
+        const times = value / amount;
+        return times >= 2
+          ? L(`You reset the password. Your ${fmt(amount)} is now worth ${fmt(value)}, about ${Math.round(times)} times what you put in, all from doing absolutely nothing.`,
+            `你重設了密碼。你的 ${fmt(amount)} 現在值 ${fmt(value)}，大約是本金的 ${Math.round(times)} 倍，而你甚麼都沒做。`)
+          : L(`You reset the password. Your ${fmt(amount)} is now worth ${fmt(value)}. Not life-changing, but more than anything you actively traded.`,
+            `你重設了密碼。你的 ${fmt(amount)} 現在值 ${fmt(value)}。不算改變人生，但比你主動買賣過的任何東西都好。`);
+      },
+    };
+  },
+};
+
 // ---------- black swans: rare, unpredictable, no choice ----------
 
-const SWAN_RATE = 0.03;
+// fragile economies get hit by shocks more often
+const SWAN_RATE = [0.045, 0.04, 0.03, 0.025, 0.025];
+
+// countries where a lot of people use crypto, so crypto events come up more often there
+const CRYPTO_HEAVY = new Set(["NGA", "VNM", "PHL", "TUR", "ARG", "IND", "PAK", "ARE"]);
+
+// how likely each event is to be drawn, compared with the default of 1
+const EVENT_WEIGHT = {
+  // the family storyline (dating, then marriage, then kids) should actually happen in a good share of lives
+  dating: () => 6,
+  officeromance: () => 2,
+  wedding: () => 10,
+  kids: () => 10,
+  parents: () => s.c.g <= 1 ? 2 : 1,
+  freeze: () => CRYPTO_HEAVY.has(s.c.iso) ? 2 : 1,
+  whale: () => CRYPTO_HEAVY.has(s.c.iso) ? 2 : 1,
+  nft: () => CRYPTO_HEAVY.has(s.c.iso) ? 2 : 1,
+  podcast: () => CRYPTO_HEAVY.has(s.c.iso) ? 1.5 : 1,
+  memefrenzy: () => s.c.g >= 3 ? 1.5 : 0.7,
+  golf: () => s.c.hub >= 2 ? 1.5 : 0.7,
+  house: () => s.c.g >= 3 ? 1.5 : 1,
+  gala: () => s.cash > 2e7 ? 2.5 : 1,
+  angel: () => s.cash > 1e7 ? 2.5 : 1,
+  tax: () => s.cash > 1e6 ? 2 : 1,
+  friendstartup: () => s.cash > 1e6 ? 2 : 1,
+};
+
+// richer lives are busier: fewer quiet years, more pitches, galas and deals
+const quietChance = () => s.cash < 1e5 ? 0.15 : s.cash < 1e6 ? 0.08 : 0.03;
 const swan = (id, when, title, text, run) => ({ id, when, build: () => ({ title: cat("⚫ ", title), text, passive: true, swan: true, run }) });
 
 const SWANS = [
@@ -222,10 +281,16 @@ const SWANS = [
 ];
 
 function sceneFor(age) {
-  if (MILESTONE_AT[age]) return MILESTONE_AT[age];
+  if (s.plan[age]) return s.plan[age];
   if (age === s.ai.start) return AI_START;
   if (age === s.ai.end) return AI_END;
-  if (age >= 18 && Math.random() < SWAN_RATE) {
+  for (const era of s.eras) {
+    if (age === era.start) return eraStart(era);
+    if (age === era.end) return eraEnd(era);
+  }
+  // waits for a year no other big scene is using
+  if (s.locked && age >= s.locked.foundAt) return PASSWORD_FOUND;
+  if (age >= 18 && Math.random() < SWAN_RATE[s.c.g]) {
     const swans = SWANS.filter(w => !s.used.has(w.id) && (!w.when || w.when()));
     if (swans.length) {
       const w = pick(swans);
@@ -233,9 +298,10 @@ function sceneFor(age) {
       return w;
     }
   }
+  if (age >= TYPE_AGE + 1 && Math.random() < quietChance()) return QUIET_YEAR;
   const pool = EVENTS.filter(e => age >= e.ages[0] && age <= e.ages[1] && !s.used.has(e.id) && (!e.when || e.when()));
   if (!pool.length) return QUIET_YEAR;
-  const e = pick(pool);
+  const e = pool[weightedIdx(pool.map(x => EVENT_WEIGHT[x.id] ? EVENT_WEIGHT[x.id]() : 1))];
   s.used.add(e.id);
   return e;
 }

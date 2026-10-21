@@ -4,10 +4,12 @@ const BIRTH_YEAR = new Date().getFullYear();
 
 function makeFamily(tier, g) {
   const jobs = PARENT_JOBS[tier];
+  // parents in poorer places tend to die younger
+  const span = (lo, hi) => rint(lo, hi) - (4 - g) * 2;
   return {
-    mother: { age: rint(19, 36), job: tier >= 1 && tier <= 3 && Math.random() < 0.3 ? HOMEMAKER : pick(jobs) },
+    mother: { age: rint(19, 36), diesAt: span(72, 96), job: tier >= 1 && tier <= 3 && Math.random() < 0.3 ? HOMEMAKER : pick(jobs) },
     // old money means Dad really is a managing director
-    father: { age: rint(21, 40), job: tier === 5 ? PARENT_JOBS[5][0] : pick(jobs) },
+    father: { age: rint(21, 40), diesAt: span(68, 92), job: tier === 5 ? PARENT_JOBS[5][0] : pick(jobs) },
     siblings: [rint(1, 4), rint(0, 3), rint(0, 2), rint(0, 2), rint(0, 2)][g],
   };
 }
@@ -30,13 +32,31 @@ function birth(opts = {}) {
     risk: 0, type: null, notes: [], ai: null,
     look: makeLook(iso), home: pick(HOMETOWNS[iso]), family: makeFamily(tier, g),
     peers: Array.from({ length: 4 }, makePeer), record: [], years: [],
+    plan: planMilestones(),
   };
   // the AI boom arrives at a random point in your career and runs for 5-8 years
   let start = rint(23, 33);
-  while (MILESTONE_AT[start]) start++;
+  while (s.plan[start]) start++;
   let end = start + rint(5, 8);
-  while (MILESTONE_AT[end]) end++;
+  while (s.plan[end]) end++;
   s.ai = { start, end, exposure: 0 };
+  s.eras = planEras(new Set([...Object.keys(s.plan).map(Number), start, end]));
+}
+
+// picks an age inside each milestone's window, in order, and one version of each milestone
+function planMilestones() {
+  const plan = {};
+  let prev = 0;
+  for (const m of MILESTONES) {
+    if (m.chance && Math.random() > m.chance) continue;
+    const lo = Math.max(m.ages[0], prev + 1);
+    const age = lo <= m.ages[1] ? rint(lo, m.ages[1]) : lo;
+    const versions = [m.build, ...(MILESTONE_VARIANTS[m.key] || [])];
+    const v = rint(0, versions.length - 1);
+    plan[age] = { id: `${m.key}:${v}`, key: m.key, build: versions[v], pre: m.pre };
+    prev = age;
+  }
+  return plan;
 }
 
 // each year: invested money compounds, debt accrues interest, and you save your net income
@@ -63,13 +83,30 @@ function advanceTo(age) {
         s.cash *= 1 + gain;
         s.notes.push({ bad: false, text: L(`🤖 AI boom: your AI stocks pushed your portfolio up another ${pct(gain)} this year.`, `🤖 AI 熱潮：你的 AI 股令投資組合今年再升 ${pct(gain)}。`) });
       }
+      for (const era of s.eras) {
+        if (era.exposure <= 0 || s.age < era.start || s.age >= era.end) continue;
+        const def = eraDef(era.id);
+        const g = Math.max(-0.6, era.exposure * rnd(def.gain[0], def.gain[1]) * t.swing);
+        s.cash *= 1 + g;
+        s.notes.push({
+          bad: g < 0,
+          text: cat(`${def.emoji} `, def.name(), g >= 0
+            ? L(`: your ${def.asset.en} pushed your portfolio up ${pct(g)} this year.`, `：你的${def.asset.zh}令投資組合今年上升 ${pct(g)}。`)
+            : L(`: your ${def.asset.en} dragged your portfolio down ${pct(-g)} this year.`, `：你的${def.asset.zh}令投資組合今年下跌 ${pct(-g)}。`)),
+        });
+      }
     } else if (s.cash > 0) {
       s.cash *= 1.05;
     } else {
       s.cash *= 1.04;
     }
     s.cash += s.income;
-    if (s.track === "elite") s.sanity -= 3;
+    // the forgotten index fund grows like the market, whatever your personality, and isn't part of your net worth until you find it
+    if (s.locked) s.locked.value *= 1 + Math.max(-0.4, 0.08 + 0.16 * gauss());
+    // high finance wears you down, more slowly once you are senior
+    if (s.track === "elite") s.sanity -= s.age < 50 ? 3 : 1;
+    // life past 55 gets a little gentler for everyone
+    if (s.age >= 55) s.sanity += 1;
     s.age++;
   }
   fix();
@@ -81,7 +118,16 @@ function setType() {
 
 // savings kept in a weaker home currency lose value every year, until you move to a finance hub
 const DRAG = [0.06, 0.04, 0.015, 0, 0];
-const currencyDrag = () => s.city ? 0 : DRAG[s.c.g];
+const currencyDrag = () => s.city || s.flags.dollarized ? 0 : DRAG[s.c.g] * (s.flags.gold ? 0.5 : 1);
+
+// shady choices build up regulator attention; from 22 on, each year has a small chance it catches up with you
+const secCatches = () => s.age >= 22 && s.heat > 0 && Math.random() < Math.min(0.05, s.heat / 6000);
+
+// labels for every boom running right now, for the "This year" panel
+const activeEras = () => [
+  ...(inBoom() ? [UI.aiBoom] : []),
+  ...s.eras.filter(e => s.age > e.start && s.age < e.end).map(e => { const d = eraDef(e.id); return cat(`${d.emoji} `, d.name()); }),
+];
 
 const record = entry => s.record.push({ age: s.age, ...entry });
 
@@ -116,10 +162,21 @@ function step() {
   if (age >= END_AGE) return finish("normal");
   if (s.sanity <= 0) return finish("burnout");
 
+  for (const [key, who] of [["mother", L("Your mother", "你的母親")], ["father", L("Your father", "你的父親")]]) {
+    const p = s.family[key];
+    if (p.age + age === p.diesAt) {
+      s.sanity -= 10;
+      record({ text: cat(who, L(` passed away at ${p.diesAt}.`, `於 ${p.diesAt} 歲離世。`)), tone: "bad" });
+    }
+  }
   if (age < TYPE_AGE) {
     const line = childhoodLine(age);
     if (line) record({ text: line });
-    if (MILESTONE_AT[age]) present(MILESTONE_AT[age], "m" + age);
+    if (s.plan[age]) present(s.plan[age], s.plan[age].id);
+    else {
+      const k = kidScene(age);
+      if (k) present(k, k.id);
+    }
     return;
   }
   if (!s.type) {
@@ -128,12 +185,13 @@ function step() {
     record({ text: L(`Your temperament has settled: you're the ${t.name.en} type, ${t.title.en}.`, `你的性格已經定型：你是${t.name.zh}，${t.title.zh}。`), tone: "good" });
     if (!ui.auto) openModal({ kind: "type" });
   }
+  if (secCatches()) return finish("sec");
   const def = sceneFor(age);
   if (def.pre) {
     const end = def.pre();
     if (end) return finish(end);
   }
-  const id = def.id || (MILESTONE_AT[age] === def ? "m" + age : def === AI_START ? "aiStart" : def === AI_END ? "aiEnd" : null);
+  const id = def.id || (def === AI_START ? "aiStart" : def === AI_END ? "aiEnd" : null);
   present(def, id);
 }
 
@@ -143,7 +201,7 @@ function present(def, id) {
   if (st.passive) {
     const r = resolve(st, { label: null, run: st.run });
     // the dramatic no-choice moments still stop the clock so you see them
-    if ((st.swan || def === AI_END) && !ui.auto) openModal({ kind: "result", st, c: { label: null }, r });
+    if ((st.swan || st.big) && !ui.auto) openModal({ kind: "result", st, c: { label: null }, r });
     else if (s.sanity <= 0) finish("burnout");
     return;
   }
@@ -178,8 +236,14 @@ function resolve(st, c) {
   if (s.job !== before.job) chips.push({ text: cat(UI.newRole, " ", s.job) });
 
   const gain = s.cash - before.cash;
+  // losing money by following hype, a crowd or a stranger makes you a leek
+  if (c.crowd && gain < 0) {
+    leekMoment(st.title, -gain);
+    chips.push({ text: L("🥬 Leek moment", "🥬 韭菜時刻"), good: false });
+  }
   const tone = st.swan ? "swan" : gain < 0 || s.sanity - before.sanity <= -10 ? "bad" : gain > 0 ? "good" : "";
   if (st.swan && s.years[s.age]) s.years[s.age].swan = true;
+  if (st.swan) (s.flags.swans ||= []).push(st.id);
   record({ title: st.title, choice: c.label, text, chips, tone });
   const bigWin = before.cash > 0 && gain >= BIG_WIN.min && gain / before.cash >= BIG_WIN.pct ? { gain, pct: gain / before.cash } : null;
   return { text, chips, bigWin };
@@ -223,7 +287,9 @@ function finish(kind) {
     s.cash -= fine;
   }
   ui.queue = [];
-  ui.modal = { kind: "ending", e: { kind, fine, compare: compareStarts() } };
+  const e = { kind, fine, compare: compareStarts() };
+  e.news = recordLife(e);
+  ui.modal = { kind: "ending", e };
   ui.aside = false;
 }
 
@@ -236,12 +302,14 @@ function simulateLife(ci, tier) {
     s.notes = [];
     if (s.sanity <= 0) break;
     if (age < TYPE_AGE) {
-      if (MILESTONE_AT[age]) pick(MILESTONE_AT[age].build().choices).run();
+      const k = s.plan[age] || kidScene(age);
+      if (k) pick(k.build().choices.filter(c => !c.locked)).run();
       continue;
     }
     if (!s.type) setType();
+    if (secCatches()) { s.cash -= Math.max(0, s.cash * 0.9); break; }
     const def = sceneFor(age);
-    if (def.pre && def.pre()) { s.cash -= Math.max(0, s.cash * 0.9); break; }
+    if (def.pre && def.pre()) break;
     const st = def.build();
     const before = s.cash;
     rolled = false;
@@ -354,6 +422,8 @@ function postGains() {
   }
   fix();
   const cursed = s.cash < before.cash;
+  s.flags.flexed = true;
+  if (!cursed) s.flags.dodged = true;
   const title = L("Posted a gain screenshot", "發佈了盈利截圖");
   s.log.push({ age: s.age, title, choice: cursed ? L("got hit by the pullback", "遇上回調") : L("got away with it", "全身而退") });
   const chips = [];
@@ -385,28 +455,28 @@ function richerThan(w) {
 }
 
 const TIERS = [
-  [-Infinity, "🫠", L("You Are the Liquidity", "你就是流動性"), L("Negative net worth. Somewhere, a market maker thanks you for your service.", "負資產。某處有個莊家感謝你的貢獻。")],
-  [0, "📄", L("Paper Hands", "紙手"), L("You did finance. Finance did you back.", "你玩金融，金融也玩了你。")],
-  [1e5, "👔", L("Middle Management of Capitalism", "資本主義的中層管理"), L("A solid, respectable outcome that you will never describe as solid or respectable.", "一個穩陣、體面的結局，但你永遠不會這樣形容它。")],
-  [1e6, "🦺", L("Comfortably Insufferable", "舒適地令人難受"), L("Millionaire. You own a Patagonia vest for every season, and a fifth for transitions.", "百萬富翁。你每季都有一件 Patagonia 背心，換季還有第五件。")],
-  [1e7, "🛥️", L("Master of the Universe (Regional)", "宇宙主宰（地區版）"), L("You have a boat, a guy who drives the boat, and opinions on interest rates nobody asked for.", "你有一艘船、一個幫你開船的人，以及沒人問過的息率見解。")],
-  [1e8, "🏝️", L("Vest Royalty", "背心皇族"), L("Nine figures. Your name is on a hospital wing you've never visited.", "九位數身家。你的名字刻在一座你從未踏足的醫院翼樓上。")],
-  [1e9, "🚀", L("Billionaire", "億萬富翁"), L("You now post about free speech at 3am and are in talks to buy a sports team.", "你現在凌晨三點發帖談言論自由，還在洽購一支球隊。")],
+  [-Infinity, "🫠", L("You Are the Liquidity", "你就是流動性"), L("Negative net worth. Somewhere, a market maker thanks you for your service.", "負資產。某處有個莊家感謝你的貢獻。"), "liquidity", L("End with a negative net worth", "以負資產結束")],
+  [0, "📄", L("Paper Hands", "紙手"), L("You did finance. Finance did you back.", "你玩金融，金融也玩了你。"), "paper", L("End with less than $100k", "以少於 $100k 結束")],
+  [1e5, "👔", L("Middle Management of Capitalism", "資本主義的中層管理"), L("A solid, respectable outcome that you will never describe as solid or respectable.", "一個穩陣、體面的結局，但你永遠不會這樣形容它。"), "middle", L("End with $100k to $1M", "以 $100k 至 $1M 結束")],
+  [1e6, "🦺", L("Comfortably Insufferable", "舒適地令人難受"), L("Millionaire. You own a Patagonia vest for every season, and a fifth for transitions.", "百萬富翁。你每季都有一件 Patagonia 背心，換季還有第五件。"), "comfy", L("End with $1M to $10M", "以 $1M 至 $10M 結束")],
+  [1e7, "🛥️", L("Master of the Universe (Regional)", "宇宙主宰（地區版）"), L("You have a boat, a guy who drives the boat, and opinions on interest rates nobody asked for.", "你有一艘船、一個幫你開船的人，以及沒人問過的息率見解。"), "master", L("End with $10M to $100M", "以 $10M 至 $100M 結束")],
+  [1e8, "🏝️", L("Vest Royalty", "背心皇族"), L("Nine figures. Your name is on a hospital wing you've never visited.", "九位數身家。你的名字刻在一座你從未踏足的醫院翼樓上。"), "vest", L("End with $100M to $1B", "以 $100M 至 $1B 結束")],
+  [1e9, "🚀", L("Billionaire", "億萬富翁"), L("You now post about free speech at 3am and are in talks to buy a sports team.", "你現在凌晨三點發帖談言論自由，還在洽購一支球隊。"), "billionaire", L("End with $1B or more", "以 $1B 或以上結束")],
 ];
 
 function endingInfo(e) {
   if (e.kind === "sec") return {
-    emoji: "⚖️", title: L("SEC'd", "被證監會盯上"),
+    id: "sec", emoji: "⚖️", title: L("SEC'd", "被證監會盯上"),
     blurb: L(`The SEC found your texts. You pay ${fmt(e.fine)} in fines and disgorgement and spend 18 months at a minimum-security prison with surprisingly good tennis courts.`,
       `證監會找到了你的短訊。你支付了 ${fmt(e.fine)} 的罰款及追繳非法所得，並在一間最低保安級別、網球場出奇地好的監獄度過 18 個月。`),
   };
   if (e.kind === "burnout") return {
-    emoji: "🧘", title: L(`Burnt Out at ${s.age}`, `${s.age} 歲燃燒殆盡`),
+    id: "burnout", emoji: "🧘", title: L(`Burnt Out at ${s.age}`, `${s.age} 歲燃燒殆盡`),
     blurb: L("You quit, move to Bali, and now teach breathwork to other ex-bankers. Your net worth stopped mattering to you. We calculated it anyway.",
       "你辭職搬到峇里，現在教其他前銀行家呼吸練習。身家對你已不再重要，但我們還是幫你算了。"),
   };
-  const [, emoji, title, blurb] = TIERS.filter(t => s.cash >= t[0]).pop();
-  return { emoji, title, blurb };
+  const [, emoji, title, blurb, id] = TIERS.filter(t => s.cash >= t[0]).pop();
+  return { id, emoji, title, blurb };
 }
 
 function shareText(e) {
@@ -510,14 +580,15 @@ function drawEndCard(e) {
   g.fillText(tr(L("LIFE MAP · 1 SQUARE = 1 YEAR", "人生地圖 · 1 格 = 1 年")), 28, y);
   y += 12;
   const size = 26, gap = 6;
+  const cols = 13;
   for (let a = 0; a < END_AGE; a++) {
     const tone = yearTone(a).split(" ")[0];
     g.fillStyle = MAP_COLORS[tone] || MAP_COLORS.plain;
-    g.fillRect(28 + (a % 15) * (size + gap), y + Math.floor(a / 15) * (size + gap), size, size);
+    g.fillRect(28 + (a % cols) * (size + gap), y + Math.floor(a / cols) * (size + gap), size, size);
   }
 
   // footer sits just under the map, and the card is trimmed to that height
-  const end = y + 3 * (size + gap) + 44;
+  const end = y + Math.ceil(END_AGE / cols) * (size + gap) + 44;
   g.fillStyle = "#9a9ba6"; g.font = `500 13px ${sans}`;
   const url = gameURL().replace(/^https?:\/\//, "");
   g.fillText(url || tr(L("1 in 8 Billion: Finance Bro", "80 億分之一：金融佬")), 28, end - 22);
@@ -661,6 +732,7 @@ function renderAll() {
       <div><span>${tr(L("Net worth", "身家"))}</span><b class="${s.cash < 0 ? "neg" : ""}">${fmt(s.cash)}</b></div>
       <div><span>${tr(L("Saved per year", "每年儲蓄"))}</span><b>${s.income ? fmt(s.income) : "—"}</b></div>
       ${s.ai.exposure > 0 ? `<div><span>${tr(L("AI exposure", "AI 持倉"))}</span><b>${pct(s.ai.exposure)}</b></div>` : ""}
+      ${s.eras.filter(e => e.exposure > 0).map(e => { const d = eraDef(e.id); return `<div><span>${d.emoji} ${tr(L(`${capitalize(d.asset.en)} exposure`, `${d.asset.zh}持倉`))}</span><b>${pct(e.exposure)}</b></div>`; }).join("")}
     </div>`;
 
   drawScene($("#scene"));
@@ -671,7 +743,7 @@ function renderAll() {
   const fresh = s.record.length - (ui.seen || 0);
   ui.seen = s.record.length;
   $("#focus").innerHTML = `
-    <div class="phead"><h3>${tr(L("This year", "今年"))}</h3>${inBoom() ? `<small class="boom">${tr(UI.aiBoom)}</small>` : ""}</div>
+    <div class="phead"><h3>${tr(L("This year", "今年"))}</h3>${activeEras().map(x => `<small class="boom">${tr(x)}</small>`).join(" ")}</div>
     <div class="muted">${tr(stage.title)} · ${tr(s.city || s.home)} · ${tr(s.c.name)}</div>
     <p>${tr(stage.text)}</p>`;
 
@@ -689,8 +761,11 @@ function renderAll() {
   const yrs = n => L(`${n} years`, `${n} 歲`);
   $("#family").innerHTML = `
     <div class="phead"><h3>${tr(L("Family and life", "家庭與生活"))}</h3></div>
-    ${row(L("Mother", "母親"), yrs(f.mother.age + s.age), f.mother.job)}
-    ${row(L("Father", "父親"), yrs(f.father.age + s.age), f.father.job)}
+    ${["mother", "father"].map(k => {
+      const p = f[k], now = p.age + s.age;
+      const label = k === "mother" ? L("Mother", "母親") : L("Father", "父親");
+      return now >= p.diesAt ? row(label, L(`Passed away at ${p.diesAt}`, `${p.diesAt} 歲離世`), p.job) : row(label, yrs(now), p.job);
+    }).join("")}
     ${row(L("Siblings", "兄弟姊妹"), String(f.siblings))}
     ${s.age >= 22 ? row(L("Partner", "伴侶"), s.flags.married ? L("Married", "已婚") : s.flags.partner ? L("Dating", "拍拖中") : L("Single", "單身")) : ""}
     ${s.age >= 22 ? row(L("Kids", "子女"), s.flags.kid ? "1" : "0") : ""}
@@ -735,7 +810,11 @@ function modalHead(label) {
     ${ui.modal.kind === "decision" ? `<button class="aside-btn" data-act="aside">${tr(L("Set aside ▾", "暫時擱置 ▾"))}</button>` : ""}</div>`;
 }
 
-const dataHTML = id => DATA[id] ? `<div class="data"><b>${tr(L("Data", "數據"))}</b> ${tr(DATA[id])}</div>` : "";
+// data notes can belong to one version of a milestone ("crisis:0") or to all of its versions ("kid1")
+const dataHTML = id => {
+  const d = id && (DATA[id] || DATA[id.split(":")[0]]);
+  return d ? `<div class="data"><b>${tr(L("Data", "數據"))}</b> ${tr(d)}</div>` : "";
+};
 
 function renderModal() {
   const root = $("#modal");
@@ -792,7 +871,7 @@ function renderModal() {
       </div>`;
   } else if (m.kind === "decision") {
     const st = m.st;
-    body = `${modalHead(st.swan ? UI.swan : L("A big decision", "重大決定"))}
+    body = `${modalHead(st.swan ? UI.swan : st.small ? L("Growing up", "成長點滴") : L("A big decision", "重大決定"))}
       <div class="mbody">
         <h2>${tr(st.title)}</h2>
         <p>${tr(st.text)}</p>
@@ -855,16 +934,20 @@ function renderModal() {
           <div class="muted small">${tr(rankLine)}</div>
         </div>
         ${compareHTML(m.e.compare)}
+        ${s.locked ? `<p class="small muted">🔑 ${tr(L(`You never remembered the password to the S&P 500 fund you opened as a teenager. It's now worth ${fmt(s.locked.value)}, and nobody knows it's there.`, `你始終沒有記起少年時開的標普 500 基金密碼。它現在值 ${fmt(s.locked.value)}，而沒有人知道它的存在。`))}</p>` : ""}
+        ${m.e.news.length ? `<div class="unlocks">${m.e.news.map(n => `<span class="chip unlock">🆕 ${tr(n)}</span>`).join("")}</div>` : ""}
         <h3 class="end-h">${tr(L("The others born in the same second", "同一秒出生的其他人"))}</h3>
         <div class="epilogue">${s.peers.map(p => `<div class="peer ${p.diesAt !== null ? "gone" : ""}">
           <div><b>${esc(p.name)}</b><small>${p.flag} ${tr(p.country)}</small></div>
-          <span>${tr(p.diesAt !== null ? peerStatus(p, END_AGE) : cat(L("at 45: ", "45 歲："), peerStatus(p, END_AGE)))}</span></div>`).join("")}</div>
+          <span>${tr(p.diesAt !== null ? peerStatus(p, END_AGE) : cat(L(`at ${END_AGE}: `, `${END_AGE} 歲：`), peerStatus(p, END_AGE)))}</span></div>`).join("")}</div>
+        ${leekHTML()}
         <h3 class="end-h">${tr(L("Your ending card", "你的結局卡"))}</h3>
         <img class="shot endshot" src="${card}" alt="${tr(L("Ending card with your result", "顯示你結局的卡片"))}">
         <a class="primary save" href="${card}" download="1in8billion-ending.png">${tr(L("📸 Save ending card", "📸 儲存結局卡"))}</a>
         ${canShareFiles() ? `<button class="secondary" data-act="share">${tr(L("Share…", "分享……"))}</button>` : ""}
         <button class="secondary" data-act="again">${tr(L(`Be born again as ${nm()} →`, `以 ${nm()} 的身份再投胎 →`))}</button>
         <button class="secondary" data-act="copy">${tr(L("Copy my result", "複製我的結果"))}</button>
+        <button class="secondary" data-act="collection">${tr(L("📚 Open My lives", "📚 打開我的人生"))}</button>
         <button class="secondary" data-act="rename">${tr(L("Start over with a different name", "用另一個名字重新開始"))}</button>
         <p class="footnote">${tr(L("Your whole life is in the life record and life map behind this box. Birth odds are weighted by the population of 34 countries. Wealth percentiles are rough estimates based on published global wealth distributions. Not financial advice, obviously.",
           "你的整段人生都記錄在這個方框後面的人生紀錄和人生地圖裡。出生機率按 34 個國家的人口加權。財富百分位是根據已公佈的全球財富分佈所作的粗略估算。當然，這不構成任何投資建議。"))}</p>
@@ -900,6 +983,7 @@ function drawStart() {
         <input id="name" maxlength="${NAME_MAX}" placeholder="${tr(L("e.g. Jordan", "例如：阿明"))}" autocomplete="off" value="${esc(nameDraft ?? playerName)}">
       </label>
       <button class="primary" id="go">${tr(L("Be born →", "投胎 →"))}</button>
+      <button class="secondary" data-act="collection">${tr(L(`📚 My lives (${loadColl().lives})`, `📚 我的人生（${loadColl().lives}）`))}</button>
     </section>`;
   redraw = drawStart;
   const input = $("#name");
@@ -984,6 +1068,13 @@ document.addEventListener("click", e => {
     case "again": return startLife();
     case "rename": return drawStart();
     case "share": shareCard(ui.modal.e); return;
+    case "collection": ui.confirmReset = false; return drawCollection();
+    case "back": return drawStart();
+    case "reset-coll":
+      if (!ui.confirmReset) { ui.confirmReset = true; return drawCollection(); }
+      ui.confirmReset = false;
+      saveColl(freshColl());
+      return drawCollection();
     case "copy":
       navigator.clipboard.writeText(shareText(ui.modal.e))
         .then(() => { b.textContent = tr(L("Copied!", "已複製！")); })

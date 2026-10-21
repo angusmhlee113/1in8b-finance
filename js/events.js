@@ -105,7 +105,7 @@ const EVENTS = [
       "靠著爸媽的簽名和你畢生積蓄，你正式入市了。"),
     choices: [
       {
-        label: L("Buy whatever Reddit is hyping", "Reddit 炒甚麼就買甚麼"), sub: L("The people's choice", "人民的選擇"), run() {
+        crowd: true, label: L("Buy whatever Reddit is hyping", "Reddit 炒甚麼就買甚麼"), sub: L("The people's choice", "人民的選擇"), run() {
           if (chance(0.4)) {
             const g = Math.max(800, s.cash * 0.5); s.cash += g;
             return L(`To the moon! You make ${fmt(g)} and start saying "tendies" unironically.`, `衝上月球！你賺了 ${fmt(g)}，開始認真地說「炸雞塊」（tendies）。`);
@@ -116,7 +116,14 @@ const EVENTS = [
       },
       {
         label: L("Buy the S&P 500 and forget the password", "買標普 500，然後忘記密碼"), sub: L("Accidental genius", "意外的天才"),
-        run() { s.cash += Math.max(200, s.cash * 0.15); return L("Best investment decision of your life, and you didn't even mean to make it.", "這是你人生最好的投資決定，而你根本不是故意的。"); },
+        run() {
+          // the money disappears from view and quietly compounds until you rediscover it, years later
+          const amount = Math.max(100, Math.round(Math.max(0, s.cash) * 0.8));
+          s.cash -= amount;
+          s.locked = { amount, value: amount, foundAt: rint(28, 58) };
+          return L(`You put ${fmt(amount)} into an S&P 500 fund. A week later you can't remember the password, or the email you used. You stop thinking about it.`,
+            `你把 ${fmt(amount)} 放進標普 500 基金。一星期後你已經忘記了密碼，連用哪個電郵登記都忘了。你不再去想它。`);
+        },
       },
       {
         label: L("Day trade between classes", "小息時即日鮮"), sub: L("Phone under the desk", "手機放在書桌下"),
@@ -193,7 +200,7 @@ const EVENTS = [
       "他的頭像是一隻卡通猿猴。他在「尋找年輕人才」，手上有個「保證十倍的機會」。"),
     choices: [
       {
-        label: L("Copy his trades", "跟他落單"), sub: L("He seems legit", "他看起來很正經"), run() {
+        crowd: true, label: L("Copy his trades", "跟他落單"), sub: L("He seems legit", "他看起來很正經"), run() {
           if (chance(0.35)) {
             const g = Math.max(20000 * reach(), s.cash); s.cash += g; s.network += 8;
             return L(`He was legit (this time). +${fmt(g)}.`, `他是真的（這一次）。+${fmt(g)}。`);
@@ -215,7 +222,7 @@ const EVENTS = [
         run() { s.sanity -= 3; return L("You get out a day before withdrawals freeze. You feel like a genius for one day, then the whole market crashes anyway.", "你在凍結提款前一天成功撤走。你覺得自己是天才，維持了一天，然後整個市場照樣崩盤。"); },
       },
       {
-        label: L("It's just FUD", "只是恐慌散播"), sub: L("Trust the CEO", "相信 CEO"), run() {
+        crowd: true, label: L("It's just FUD", "只是恐慌散播"), sub: L("Trust the CEO", "相信 CEO"), run() {
           if (chance(0.6)) {
             const l = Math.max(0, s.cash * 0.5); s.cash -= l; s.sanity -= 15;
             return L(`The assets were not fine. You lose ${fmt(l)} and gain a lifelong distrust of CEOs who wear shorts on stage.`, `資產有問題。你蝕了 ${fmt(l)}，從此不再信任穿短褲上台的 CEO。`);
@@ -245,7 +252,7 @@ const EVENTS = [
   })),
 
   // ---- working life ----
-  ev("bonus", [23, 44], () => s.track === "elite", () => {
+  ev("bonus", [23, 64], () => s.track === "elite", () => {
     const bonus = Math.round(s.income * rnd(0.2, 0.6));
     return {
       title: L("Bonus day", "派花紅日"),
@@ -313,7 +320,7 @@ const EVENTS = [
       { label: L("Decline", "拒絕"), sub: L("Stay put", "留在原地"), run() { s.sanity += 4; return L("You stay. Three colleagues go. They all send you the same rooftop pool photo.", "你留下了。三個同事去了，他們都傳給你同一張天台泳池照片。"); } },
     ],
   })),
-  ev("mdarrested", [24, 44], () => s.track === "elite", () => ({
+  ev("mdarrested", [24, 64], () => s.track === "elite", () => ({
     title: L("Your old boss is on the news", "你的前上司上了新聞"),
     text: L(`Your former MD was arrested for "irregularities." The photos show him in handcuffs and a Patagonia vest.`,
       "你的前 MD 因「違規行為」被捕。照片中他戴著手銬，穿著 Patagonia 背心。"),
@@ -339,7 +346,7 @@ const EVENTS = [
       { label: L("Stay loyal", "保持忠誠"), sub: L("Loyalty gets rewarded, right?", "忠誠會有回報的，對吧？"), run() { s.sanity += 4; return L("Your loyalty is noted in an HR system that gets replaced next year.", "你的忠誠被記錄在一個明年就會被換掉的 HR 系統裡。"); } },
     ],
   })),
-  ev("layoffs", [23, 44], isCareer, () => ({
+  ev("layoffs", [23, 64], isCareer, () => ({
     title: L("Layoff season", "裁員季節"),
     text: L(`Calendar invites titled "Quick Sync" are going out, and HR is on all of them.`,
       "標題為「快速同步」的會議邀請陸續發出，每一個都有 HR 在內。"),
@@ -369,7 +376,7 @@ const EVENTS = [
       { label: L("No", "不打"), sub: L("Stand firm", "立場堅定"), run() { s.sanity += 3; return L("You hear later that three deals were decided on the 9th hole.", "你後來聽說有三單交易是在第九洞決定的。"); } },
     ],
   })),
-  ev("cfoask", [25, 44], () => s.track === "normie", () => ({
+  ev("cfoask", [25, 64], () => s.track === "normie", () => ({
     title: L("The CFO asks for a favor", "財務總監請你幫個忙"),
     text: L(`"We just need the quarter to look a little better. Move some revenue forward. Everyone does it."`,
       "「我們只需要這一季的數字好看一點。把一些收入提前入帳就好，人人都這樣做。」"),
@@ -392,7 +399,7 @@ const EVENTS = [
       },
     ],
   })),
-  ev("review", [24, 44], () => s.track === "normie", () => {
+  ev("review", [24, 64], () => s.track === "normie", () => {
     const p = Math.min(0.85, s.network / 150 + s.hustle / 200);
     return {
       title: L("Annual review", "年度考核"),
@@ -410,7 +417,7 @@ const EVENTS = [
       ],
     };
   }),
-  ev("ai", [30, 44], () => isCareer() && s.age > s.ai.start, () => ({
+  ev("ai", [30, 64], () => isCareer() && s.age > s.ai.start, () => ({
     title: L("AI is coming for your job", "AI 要搶你的飯碗"),
     text: L("Your firm announces an AI tool that does 80% of what your team does. There's a town hall about it.",
       "公司宣布推出一個 AI 工具，能做你團隊八成的工作。還為此開了全體大會。"),
@@ -434,7 +441,7 @@ const EVENTS = [
       },
     ],
   })),
-  ev("podcast", [22, 44], () => s.track === "degen", () => ({
+  ev("podcast", [22, 64], () => s.track === "degen", () => ({
     title: L("Podcast invite", "Podcast 邀請"),
     text: L(`A popular finance podcast wants you on to talk about "the future of money."`,
       "一個熱門財經 Podcast 邀請你上節目談「金錢的未來」。"),
@@ -462,7 +469,7 @@ const EVENTS = [
         },
       },
       {
-        label: L("Buy it. Apes together strong.", "買入！猿猴團結力量大"), sub: L("Momentum", "動能"), run() {
+        crowd: true, label: L("Buy it. Apes together strong.", "買入！猿猴團結力量大"), sub: L("Momentum", "動能"), run() {
           const b = Math.max(0, s.cash) * 0.2;
           if (chance(0.3)) { s.cash += b * 2; return L(`It goes up again! +${fmt(b * 2)}. You get a tattoo of a rocket.`, `它又升了！+${fmt(b * 2)}。你紋了一枚火箭。`); }
           s.cash -= b * 0.7;
@@ -487,14 +494,14 @@ const EVENTS = [
       { label: L("Pass", "不投"), sub: L("Protect the friendship", "保護友誼"), run() { s.network -= 3; return L("He stops inviting you to things. The startup dies anyway.", "他不再約你出來。初創最終還是倒閉了。"); } },
     ],
   })),
-  ev("dating", [23, 32], () => !s.flags.partner, () => ({
+  ev("dating", [23, 40], () => !s.flags.partner, () => ({
     title: L("Dating in finance", "金融人的約會"),
     text: L(`Your dating profile says "Finance. 6'1". Love to travel." Two of these are true.`,
       "你的交友檔案寫著：「金融業。6 呎 1。熱愛旅行。」其中兩項是真的。"),
     choices: [
       { label: L("Date someone else in finance", "跟同樣做金融的人約會"), sub: L("Power couple", "強強聯手"), run() { s.flags.partner = true; s.network += 6; s.sanity -= 3; return L("Your dates are booked in 30-minute blocks with a hard stop. It's romantic, in a way.", "你們的約會以 30 分鐘為單位，準時結束。某程度上也算浪漫。"); } },
       { label: L("Date a schoolteacher", "跟老師約會"), sub: L("Grounded", "腳踏實地"), run() { s.flags.partner = true; s.sanity += 10; return L("They think your job sounds made up. Honestly, fair.", "對方覺得你的工作聽起來像虛構的。說實話，很公道。"); } },
-      { label: L("Married to the job", "嫁了給工作"), sub: L("Grind", "拼搏"), run() { s.hustle += 6; s.sanity -= 8; return L("Your longest relationship is with your Bloomberg terminal.", "你最長久的關係是跟你的彭博終端機。"); } },
+      { label: L("Married to the job", "嫁了給工作"), sub: L("Grind", "拼搏"), run() { s.hustle += 6; s.sanity -= 8; s.used.delete("dating"); return L("Your longest relationship is with your Bloomberg terminal.", "你最長久的關係是跟你的彭博終端機。"); } },
     ],
   })),
   ev("wedding", [26, 40], () => s.flags.partner && !s.flags.married, () => ({
@@ -520,10 +527,10 @@ const EVENTS = [
       "伴侶在晚飯時問你。你本能地在腦中建立成本模型。"),
     choices: [
       { label: L("Yes", "要"), sub: L("The best long-term investment", "最好的長線投資"), run() { s.flags.kid = true; s.income -= 20000 * sc(); s.sanity += 6; s.hustle -= 4; return L("You're a parent! Sleep is now a theoretical concept, which, to be fair, it already was.", "你做父母了！睡眠現在是一個理論概念，不過公平地說，它本來就是。"); } },
-      { label: L("Not yet", "遲些再說"), sub: L("Q3, maybe", "或者第三季"), run() { s.hustle += 3; return L(`You agree to "revisit it next quarter." Your partner did not love that phrasing.`, "你們同意「下一季再檢討」。伴侶不太喜歡這個說法。"); } },
+      { label: L("Not yet", "遲些再說"), sub: L("Q3, maybe", "或者第三季"), run() { s.hustle += 3; s.used.delete("kids"); return L(`You agree to "revisit it next quarter." Your partner did not love that phrasing.`, "你們同意「下一季再檢討」。伴侶不太喜歡這個說法。"); } },
     ],
   })),
-  ev("privschool", [33, 44], () => s.flags.kid, () => ({
+  ev("privschool", [33, 50], () => s.flags.kid, () => ({
     title: L("Kindergarten admissions", "幼稚園入學"),
     text: L(`The private school costs ${fmt(60000 * sc())} a year. For kindergarten. There's an interview. For a four-year-old.`,
       `私立學校每年 ${fmt(60000 * sc())}。是幼稚園。要面試，面試一個四歲小孩。`),
@@ -532,7 +539,7 @@ const EVENTS = [
       { label: L("Public school", "公立學校"), sub: L("Character-building", "磨練性格"), run() { s.sanity += 4; return L("Your kid is thriving. Your colleagues act like you're raising them in the woods.", "孩子茁壯成長。同事卻當你在森林裡養孩子。"); } },
     ],
   })),
-  ev("divorce", [32, 44], () => s.flags.married && !s.flags.prenup && s.sanity < 40, () => ({
+  ev("divorce", [32, 64], () => s.flags.married && !s.flags.prenup && s.sanity < 40, () => ({
     title: L(`"We need to talk"`, "「我們需要談談」"),
     text: L(`Your partner says you've been "emotionally unavailable since 2019." You were on a call when they said it.`,
       "伴侶說你「自 2019 年起就情感缺席」。對方說這句話時，你正在開電話會議。"),
@@ -543,7 +550,7 @@ const EVENTS = [
       return L(`No prenup. Half your net worth, ${fmt(l)}, walks out the door. You finally understand hedging.`, `沒有婚前協議。你一半身家，即 ${fmt(l)}，就這樣走出了門口。你終於明白甚麼叫對沖。`);
     },
   })),
-  ev("parents", [25, 44], () => s.tier <= 2, () => ({
+  ev("parents", [25, 64], () => s.tier <= 2, () => ({
     title: L("Your parents call", "爸媽來電"),
     text: L("The roof is leaking, and so is the car. They don't want to ask, but they're asking.",
       "屋頂漏水，車也漏油。他們不想開口，但還是開口了。"),
@@ -576,7 +583,7 @@ const EVENTS = [
       { label: L("Keep renting, invest the rest", "繼續租，剩下的錢拿去投資"), sub: L("The spreadsheet says so", "試算表是這樣說的"), run() { s.cash += Math.max(0, s.cash) * 0.05; return L(`Your spreadsheet says renting is optimal. Your parents say you're "throwing money away." You're both a bit right.`, "你的試算表說租樓最理想。爸媽說你在「把錢掉進海」。你們都有點道理。"); } },
     ],
   })),
-  ev("tax", [24, 44], () => s.cash > 100000, () => ({
+  ev("tax", [24, 64], () => s.cash > 100000, () => ({
     title: L("Tax season", "報稅季節"),
     text: L(`Your accountant asks how "creative" you'd like to be this year.`, "你的會計師問你今年想有多「創意」。"),
     choices: [
@@ -585,7 +592,7 @@ const EVENTS = [
       { label: L("Do it yourself with free software", "用免費軟件自己報"), sub: L("Save $500", "慳 $500"), run() { s.sanity -= 8; s.cash += 500; return L("You save $500 and lose a weekend. A letter from the tax office arrives six months later.", "你慳了 $500，失去了一個週末。六個月後稅局來信了。"); } },
     ],
   })),
-  ev("burnwarn", [22, 44], () => s.sanity < 35, () => ({
+  ev("burnwarn", [22, 64], () => s.sanity < 35, () => ({
     title: L("Warning signs", "警號"),
     text: L("You cried in the bathroom between two calls. Then you went back to the second call and crushed it.",
       "你在兩個電話會議之間躲在洗手間哭。然後你回去，把第二個會議處理得非常出色。"),
@@ -595,7 +602,7 @@ const EVENTS = [
       { label: L("Start therapy", "開始心理治療"), sub: L("Finally", "終於"), run() { s.cash -= Math.round(8000 * sc()); s.sanity += 16; return L(`Your therapist says "that sounds really hard." Nobody has ever said that to you before.`, "治療師說：「聽起來真的很辛苦。」從來沒有人對你說過這句話。"); } },
     ],
   })),
-  ev("health", [33, 44], null, () => ({
+  ev("health", [33, 64], null, () => ({
     title: L("Annual physical", "年度身體檢查"),
     text: L(`Your doctor looks at your bloodwork and says your cortisol "looks like a stock chart."`,
       "醫生看著你的驗血報告，說你的皮質醇「看起來像一張股票圖」。"),
@@ -605,7 +612,7 @@ const EVENTS = [
       { label: L("Ignore it", "不理它"), sub: L("Doctors are conservative", "醫生都很保守"), run() { s.sanity -= 10; return L("You're fine. Probably.", "你沒事的。大概吧。"); } },
     ],
   })),
-  ev("midlife", [38, 44], null, () => ({
+  ev("midlife", [38, 55], null, () => ({
     title: L("Midlife crisis", "中年危機"),
     text: L("You wake up and realize you've spent 20 years making rich people slightly richer.",
       "你一覺醒來，發現自己花了 20 年讓有錢人再有錢一點點。"),
@@ -624,7 +631,7 @@ const EVENTS = [
       { label: L("Pitch everyone on your investment ideas", "向每個人推銷你的投資點子"), sub: L("Always be closing", "永遠在成交"), run() { s.network += 6; s.sanity -= 3; return L("Two classmates give you money to manage. You're not invited to the next reunion.", "兩個同學把錢交給你管理。下次同學會沒有邀請你。"); } },
     ],
   })),
-  ev("gala", [32, 44], () => s.cash > 2e6, () => ({
+  ev("gala", [32, 64], () => s.cash > 2e6, () => ({
     title: L("The charity gala", "慈善晚宴"),
     text: L("$5,000 a plate. There's a silent auction for a weekend with a famous investor.",
       "每位 $5,000。有一個無聲拍賣，拍品是跟一位著名投資者共度週末。"),
@@ -636,7 +643,7 @@ const EVENTS = [
       { label: L("Network hard, donate little", "拼命結識人，少少捐款"), sub: L("Efficient", "高效率"), run() { s.cash -= 5000; s.network += 8; return L("You leave with 14 business cards and a tote bag.", "你帶著 14 張卡片和一個環保袋離開。"); } },
     ],
   })),
-  ev("angel", [30, 44], () => s.cash > 1e6, () => ({
+  ev("angel", [30, 64], () => s.cash > 1e6, () => ({
     title: L("Angel investing", "天使投資"),
     text: L("Founders keep asking you for checks. You're starting to feel like a VC.", "創辦人不停找你開支票。你開始覺得自己是創投了。"),
     choices: [
@@ -651,7 +658,7 @@ const EVENTS = [
       { label: L("Stick to public markets", "堅持投資上市公司"), sub: L("Liquidity is nice", "流動性很好"), run() { return L("You keep your money. You miss one unicorn. You'll hear about it forever.", "你保住了錢，錯過了一隻獨角獸。這件事你會聽一輩子。"); } },
     ],
   })),
-  ev("twitterfight", [26, 44], null, () => ({
+  ev("twitterfight", [26, 64], null, () => ({
     title: L("A fight on social media", "社交媒體罵戰"),
     text: L("A famous hedge fund manager posts a take you think is wrong. Your thumbs are already moving.",
       "一位著名對沖基金經理發表了一個你認為錯誤的觀點。你的手指已經在動。"),
@@ -666,14 +673,14 @@ const EVENTS = [
       { label: L("Close the app", "關掉 app"), sub: L("Inner peace", "內心平靜"), run() { s.sanity += 6; return L("You touch grass instead. The grass has no opinions on interest rates.", "你去摸摸草地。草地對息率沒有任何意見。"); } },
     ],
   })),
-  ev("intern", [28, 44], null, () => ({
+  ev("intern", [28, 64], null, () => ({
     title: L("The new intern", "新來的實習生"),
     text: L("A Gen Z intern says he learned everything about finance from 30-second videos. He's up 300% this year.",
       "一個 Z 世代實習生說他的金融知識全部來自 30 秒短片。他今年賺了 300%。"),
     passive: true,
     run() { s.sanity -= 4; s.hustle += 3; return L("You spend the evening wondering whether you got into finance too early or too late. The answer is yes.", "你整晚在想自己入行是太早還是太遲。答案是：都是。"); },
   })),
-  ev("phonedies", [22, 44], null, () => ({
+  ev("phonedies", [22, 64], null, () => ({
     title: L("Your phone dies", "你的手機沒電了"),
     text: L("It happens during the biggest market move of the year, on a plane with no Wi-Fi.", "偏偏在今年最大的市場波動時，你在一班沒有 Wi-Fi 的飛機上。"),
     passive: true,
@@ -685,7 +692,7 @@ const EVENTS = [
   })),
 
   // ---- personality ----
-  ev("allin", [23, 44], () => s.type === "aggressive" && s.cash > 0, () => ({
+  ev("allin", [23, 64], () => s.type === "aggressive" && s.cash > 0, () => ({
     title: L("Your gut says: all in", "你的直覺說：全押"),
     text: L("You see a once-in-a-decade setup. Every instinct you've had since the bookshelf is screaming.",
       "你看到一個十年一遇的機會。自從爬書架那天起的每一個本能都在尖叫。"),
@@ -709,7 +716,7 @@ const EVENTS = [
       { label: L("Walk away", "轉身離開"), sub: L("Out of character", "不像你的作風"), run() { s.sanity -= 6; return L("You walk away. It goes up 300% without you. You were right, and that's worse.", "你走開了。它在沒有你的情況下升了 300%。你看對了，這更難受。"); } },
     ],
   })),
-  ev("poker", [24, 44], () => s.type === "aggressive", () => ({
+  ev("poker", [24, 64], () => s.type === "aggressive", () => ({
     title: L("Poker night with the big shots", "跟大人物的撲克之夜"),
     text: L("The buy-in is more than your first car. You're holding a seven and a two. Everyone is watching you.",
       "入場費比你第一架車還貴。你手上是一張 7 和一張 2。所有人都在看著你。"),
@@ -740,7 +747,7 @@ const EVENTS = [
       { label: L("Ask for 10% like a normal person", "像正常人一樣要求加一成"), sub: L("Unusual for you", "這不像你"), run() { s.income *= 1.1; return L("You get it. It feels small, but it's yours.", "你拿到了。感覺很少，但那是你的。"); } },
     ],
   })),
-  ev("hysa", [20, 44], () => s.type === "passive", () => ({
+  ev("hysa", [20, 64], () => s.type === "passive", () => ({
     title: L("The high-yield savings account", "高息儲蓄戶口"),
     text: L("You move your emergency fund into a savings account paying 4.5%. It's the most excited you've been all year.",
       "你把緊急備用金轉到一個年息 4.5% 的戶口。這是你今年最興奮的一刻。"),
@@ -771,13 +778,13 @@ const EVENTS = [
       },
     ],
   })),
-  ev("emergency", [25, 44], () => s.type === "passive", () => ({
+  ev("emergency", [25, 64], () => s.type === "passive", () => ({
     title: L("The worst week", "最慘的一星期"),
     text: L("Your car breaks down and your apartment floods in the same week.", "同一個星期，你的車壞了，家裡又水浸。"),
     passive: true,
     run() { s.sanity += 8; return L("Your six-month emergency fund covers all of it. You've never felt so smug about anything.", "你六個月的緊急備用金全部應付得到。你從未對任何事如此得意。"); },
   })),
-  ev("rebalance", [25, 44], () => s.type === "balanced", () => ({
+  ev("rebalance", [25, 64], () => s.type === "balanced", () => ({
     title: L("Rebalancing day", "再平衡日"),
     text: L("Once a year, you trim your winners and top up your losers, exactly like the textbook says.",
       "每年一次，你減持贏家、增持輸家，完全照教科書做。"),
@@ -793,7 +800,67 @@ const EVENTS = [
       { label: L("Skip it", "不買"), sub: L("Save the money", "慳回這筆錢"), run() { return L("You save the 2%. Fingers crossed.", "你慳了 2%。祈求好運吧。"); } },
     ],
   })),
+
+  // ---- shaped by where you were born and how rich you are ----
+  ev("dollarize", [18, 40], () => HIGH_INFLATION.has(s.c.iso) && !s.city && !s.flags.dollarized && !s.flags.gold, () => ({
+    title: L("Prices change every week", "物價每星期都在變"),
+    text: L(`Inflation in ${s.c.name.en} is soaring again. At the market, prices are higher every time you go. Everyone is talking about protecting their savings.`,
+      `${s.c.name.zh}的通脹又再飆升。每次去街市，價錢都比上次高。人人都在討論如何保住積蓄。`),
+    choices: [
+      { label: L("Move your savings into US dollars", "把積蓄換成美元"), sub: L("Stops your savings shrinking", "令積蓄不再縮水"), run() { s.flags.dollarized = true; s.sanity += 4; return L("Your savings now hold their value. Your uncle calls you unpatriotic, then asks how you did it.", "你的積蓄現在保值了。舅舅說你不愛國，然後問你是怎樣做到的。"); } },
+      { label: L("Buy gold", "買黃金"), sub: L("Halves the damage", "損失減半"), run() { s.flags.gold = true; s.cash -= Math.max(0, s.cash) * 0.01; return L("You keep a small gold bar hidden in a shoebox, exactly like your grandmother did.", "你把一小塊金條藏在鞋盒裡，跟你嫲嫲當年一模一樣。"); } },
+      { label: L("Keep it in the local bank", "繼續存在本地銀行"), sub: L("Trust the system", "相信制度"), run() { s.sanity += 2; return L("You trust the central bank. The central bank does not return the favor.", "你信任央行，央行卻沒有以同樣方式回報你。"); } },
+    ],
+  })),
+  ev("remit", [23, 64], () => s.city && s.c.g <= 2 && isCareer(), () => ({
+    title: L("Family back home", "家鄉的家人"),
+    text: L(`You earn more in ${s.city.en} in a month than your parents did in a year back home. The family group chat has noticed.`,
+      `你在${s.city.zh}一個月賺的錢，比爸媽在家鄉一年賺的還多。家族群組已經注意到了。`),
+    choices: [
+      { label: L("Send home a fifth of your pay every month", "每月把五分之一人工寄回家"), sub: L("Family first", "家人優先"), run() { s.income *= 0.8; s.sanity += 12; s.network += 3; return L("Your parents fix the roof and pay off their debts. Your mother frames your payslip.", "爸媽修好了屋頂，還清了債務。媽媽把你的糧單裱了起來。"); } },
+      { label: L("Send whatever is left over", "有剩就寄"), sub: L("Middle ground", "折衷"), run() { s.income *= 0.93; s.sanity += 4; return L("Some months there's a lot left over. Some months there isn't. Your parents never complain.", "有些月份剩很多，有些月份沒有。爸媽從不抱怨。"); } },
+      { label: L(`"Not right now"`, "「暫時不行」"), sub: L("Your money, your call", "你的錢，你決定"), run() { s.sanity -= 12; return L("Nobody says anything. That's worse.", "沒有人說甚麼。這更難受。"); } },
+    ],
+  })),
+  ev("familyoffice", [25, 40], () => s.tier >= 4 && isCareer() && s.job !== JOBS.familyOffice, () => ({
+    title: L("Dad wants you to run the family money", "爸爸想你打理家族財富"),
+    text: L("Your father is stepping back. He wants you to take over the family office that manages the family's wealth.",
+      "爸爸打算退下來，想你接手管理家族財富的家族辦公室。"),
+    choices: [
+      { label: L("Take over the family office", "接手家族辦公室"), sub: L("Keep it in the family", "肥水不流別人田"), run() { setJob(JOBS.familyOffice, "elite", Math.max(s.income, 250000)); s.network += 15; s.sanity += 5; return L("Family dinners are now quarterly reviews. Your cousin is suddenly very nice to you.", "家庭晚飯現在變成季度檢討。表哥突然對你非常好。"); } },
+      { label: L("Stay in your own career", "繼續自己的事業"), sub: L("Make it on your own", "靠自己闖"), run() { s.network -= 5; s.hustle += 6; return L(`Your father starts introducing your cousin as "the successor." You tell yourself you don't mind.`, "爸爸開始介紹表哥為「接班人」。你告訴自己你不介意。"); } },
+    ],
+  })),
+  ev("yacht", [30, 64], () => s.cash > 5e7, () => {
+    const cost = Math.round(s.cash * 0.08);
+    return {
+      title: L("The superyacht", "超級遊艇"),
+      text: L("A broker sends you a brochure for a 60-meter yacht. It has a helipad, a cinema and a crew of 18.", "一個經紀寄來一份 60 米遊艇的小冊子。它有直升機坪、私人影院和 18 名船員。"),
+      choices: [
+        { label: L("Buy it", "買下它"), sub: UI.costs(cost), run() { s.cash -= cost; s.income -= cost * 0.1; s.network += 20; s.sanity += 6; return L("It costs a tenth of its price every year to run. You use it eleven days a year. It's wonderful.", "每年的營運費是售價的十分之一，而你一年只用十一天。感覺非常美妙。"); } },
+        { label: L("Buy it and rent it out", "買下並出租"), sub: L("Make it pay for itself", "讓它自負盈虧"), run() { s.cash -= cost; s.network += 10; if (chance(0.5)) { s.income += cost * 0.05; return L("Tech founders rent it all summer. It almost pays for itself.", "科技公司創辦人整個夏天都租用它。幾乎可以自負盈虧。"); } return L("A guest throws a party and the yacht needs a new interior. Insurance covers some of it.", "一位租客開派對，遊艇的內部需要重新裝修。保險只賠了一部分。"); } },
+        { label: L("Buy a nice rowing boat instead", "改買一隻好看的划艇"), sub: L("Humble", "謙虛"), run() { s.sanity += 8; s.hustle += 3; return L("You row across the lake every Sunday. Your heart rate has never been better.", "你每個星期日都划艇橫越湖面。你的心跳從未如此健康。"); } },
+      ],
+    };
+  }),
+  ev("visalottery", [22, 32], () => s.c.hub <= 1 && !s.city && isCareer(), () => ({
+    title: L("A work-visa lottery", "工作簽證抽籤"),
+    text: L("A country with a big finance industry opens a lottery for skilled work visas. Thousands apply for every place.",
+      "一個金融業發達的國家開放技術工作簽證抽籤，每個名額都有數以千計的人申請。"),
+    choices: [
+      {
+        label: L("Enter and get ready to move", "參加，並準備搬家"), sub: L("About a 1 in 3 chance", "大約三分之一機會"), run() {
+          if (Math.random() < 0.33) { const move = moveToHub(); s.income *= 1.6; s.network += 8; s.sanity -= 4; return cat(L("You won a visa! ", "你抽中了簽證！"), move, L("Your pay jumps 60%, and your savings stop losing value.", "你的人工跳升六成，積蓄也不再貶值。")); }
+          s.sanity -= 5; return L("Not this year. You refresh the results page eleven times to be sure.", "今年落空了。你刷新了結果頁面十一次確認。");
+        },
+      },
+      { label: L("Stay where your people are", "留在親友身邊"), sub: L("Home is home", "家始終是家"), run() { s.sanity += 6; s.network += 4; return L("You stay. Your network at home keeps growing.", "你留了下來。你在家鄉的人脈不斷擴大。"); } },
+    ],
+  })),
 ];
+
+// countries where high inflation has recently eaten into people's savings
+const HIGH_INFLATION = new Set(["ARG", "TUR", "NGA", "IRN", "EGY", "PAK", "ETH"]);
 
 const QUIET_YEAR = {
   build: () => ({

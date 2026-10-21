@@ -1,4 +1,5 @@
-// fixed scenes that happen at the same age in every life
+// the milestones every life passes through, in order; each happens at a random age within its window,
+// and extra versions of many of them live in variants.js
 const kid = (label, risk, result) => ({
   label, run() {
     s.risk += risk;
@@ -10,12 +11,12 @@ const kid = (label, risk, result) => ({
 const MILESTONES = [
   // ---- childhood: each answer nudges you toward aggressive (+1) or passive (-1) ----
   {
-    age: 2,
+    key: "kid1", ages: [1, 3],
     build() {
       return {
         title: L("The toy on the top shelf", "最高層架上的玩具"),
-        text: L("You're two. The best toy in the house is on the very top shelf, and nobody is watching.",
-          "你兩歲。家裡最好玩的玩具放在書架最高那一層，而且沒有人在看著你。"),
+        text: L("You're a toddler. The best toy in the house is on the very top shelf, and nobody is watching.",
+          "你還是個幼兒。家裡最好玩的玩具放在書架最高那一層，而且沒有人在看著你。"),
         choices: [
           kid(L("Climb the bookshelf", "爬上書架"), 1,
             L("You make it to the top. The bookshelf doesn't survive. Neither does the toy. You regret nothing.",
@@ -31,7 +32,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 6,
+    key: "kid2", ages: [4, 7],
     build() {
       return {
         title: L("The marshmallow test", "棉花糖測試"),
@@ -52,7 +53,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 10,
+    key: "kid3", ages: [8, 11],
     build() {
       return {
         title: L("Playground card trading", "操場上的卡牌交易"),
@@ -73,7 +74,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 14,
+    key: "kid4", ages: [12, 14],
     build() {
       return {
         title: L("Your first $200", "你的第一個 $200"),
@@ -94,7 +95,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 15,
+    key: "discover", ages: [15, 15],
     build() {
       s.job = JOBS.highSchool;
       const intro = s.c.hub >= 2
@@ -138,7 +139,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 18,
+    key: "college", ages: [18, 18],
     build() {
       const p = 0.03 + s.tier * 0.07 + s.hustle / 400 + s.network / 400 + s.c.hub * 0.03;
       const local = Math.round(15000 * (0.3 + 0.175 * s.c.g));
@@ -191,7 +192,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 20,
+    key: "recruit", ages: [20, 20],
     build() {
       if (s.school === "none") {
         return {
@@ -271,7 +272,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 22,
+    key: "offers", ages: [22, 22],
     build() {
       if (!s.score) s.score = (s.school === "target" ? 45 : s.school === "nontarget" ? 12 : 0) + s.c.hub * 7 + s.network / 5;
       const score = Math.round(s.score);
@@ -336,7 +337,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 24,
+    key: "grind", ages: [23, 24],
     build() {
       if (s.track === "elite") return {
         title: L("2:47am, Saturday", "星期六，凌晨 2:47"),
@@ -406,7 +407,7 @@ const MILESTONES = [
           "群組裡每個人都是天才。連你的理髮師都在給你貼士。"),
         choices: [
           {
-            label: L("100x leverage on a coin you heard about 4 minutes ago", "用 100 倍槓桿買一隻 4 分鐘前才聽過的幣"), sub: L("YOLO", "搏一鋪"), run() {
+            crowd: true, label: L("100x leverage on a coin you heard about 4 minutes ago", "用 100 倍槓桿買一隻 4 分鐘前才聽過的幣"), sub: L("YOLO", "搏一鋪"), run() {
               if (chance(0.3)) {
                 const gain = Math.max(50000 * reach(), s.cash * 1.5); s.cash += gain;
                 return L(`Your liquidation price was a cent away. You made ${fmt(gain)} and learned nothing.`, `距離爆倉價只差一仙。你賺了 ${fmt(gain)}，甚麼也沒學到。`);
@@ -416,7 +417,7 @@ const MILESTONES = [
             },
           },
           {
-            label: L("Diversify (into 14 other memecoins)", "分散投資（到另外 14 隻迷因幣）"), sub: L("Risk management", "風險管理"), run() {
+            crowd: true, label: L("Diversify (into 14 other memecoins)", "分散投資（到另外 14 隻迷因幣）"), sub: L("Risk management", "風險管理"), run() {
               const r = rnd(0.5, 1.9); s.cash = s.cash > 0 ? s.cash * r : s.cash;
               return r > 1
                 ? L(`Eleven went to zero but one did a 30x. You call this "portfolio construction."`, "十一隻歸零，但有一隻升了 30 倍。你稱之為「投資組合建構」。")
@@ -435,7 +436,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 26,
+    key: "exit", ages: [25, 27],
     build() {
       if (s.track === "elite") {
         const pe = Math.min(0.85, 0.2 + s.network / 150 + (s.school === "target" ? 0.15 : 0));
@@ -543,7 +544,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 29,
+    key: "ethics", ages: [27, 30],
     build() {
       return {
         title: L("A text from your college roommate", "大學室友的短訊"),
@@ -577,7 +578,7 @@ const MILESTONES = [
     },
   },
   {
-    age: 32,
+    key: "lifestyle", ages: [30, 32],
     build() {
       const cost = Math.round(Math.max(30000, s.cash * 0.05));
       return {
@@ -612,11 +613,9 @@ const MILESTONES = [
     },
   },
   {
-    age: 36,
+    key: "bet", ages: [34, 37],
     build() {
       const base = Math.max(0, s.cash);
-      const canFund = s.track === "elite" && s.network >= 55;
-      const fundOdds = Math.min(0.8, 0.3 + s.hustle / 400 + s.network / 400);
       return {
         title: L("The conviction trade", "信念交易"),
         text: s.cash > 0
@@ -644,40 +643,26 @@ const MILESTONES = [
               return L("You make 25%. Nobody wants to hear about it at parties.", "你賺了 25%。派對上沒有人想聽。");
             },
           },
-          {
-            label: L("Launch your own hedge fund", "成立自己的對沖基金"), sub: UI.odds(fundOdds),
-            locked: canFund ? null : L("Locked, needs an elite finance career and 55+ network", "未解鎖，需要精英金融事業及 55 以上人脈"),
-            run() {
-              if (chance(fundOdds)) {
-                setJob(JOBS.hf, "elite", rnd(2e6, 8e6)); s.network += 15;
-                return L("You raise $2B. Two-and-twenty on someone else's pension fund. You buy a sports-team minority stake.", "你籌得 $20 億。從別人的退休金抽「二八收費」。你買了一支球隊的少數股權。");
-              }
-              s.cash -= base * 0.2; s.sanity -= 15; setJob(JOBS.consultant, "elite", 50000);
-              return L(`The fund closes after 18 months. You're "taking some time to reflect" (unemployed).`, "基金 18 個月後清盤。你正在「花點時間沉澱」（失業中）。");
-            },
-          },
+          hedgeFundChoice(base),
         ],
       };
     },
   },
   {
-    age: 40,
+    // most careers live through one big crisis, but not all, and nobody knows how deep it will go
+    key: "crisis", ages: [37, 41], chance: 0.75,
     pre() {
-      if (s.heat > 0 && chance(Math.min(0.7, s.heat / 200))) return "sec";
-      const drop = Math.min(0.7, 0.35 * typeOf().crash * (s.flags.hedged ? 0.5 : 1));
+      const depth = s.flags.crashDepth = rnd(0.15, 0.5);
+      const drop = Math.min(0.8, depth * typeOf().crash * (s.flags.hedged ? 0.5 : 1));
       if (s.cash > 0) { s.flags.crashLoss = Math.round(s.cash * drop); s.cash -= s.flags.crashLoss; }
       return null;
     },
     build() {
       const base = Math.max(0, s.cash);
-      const loss = s.flags.crashLoss;
-      const hedged = s.flags.hedged;
+      const depth = pct(s.flags.crashDepth);
       return {
         title: L("Global recession", "全球經濟衰退"),
-        text: loss
-          ? L(`Markets fall 35%. TV anchors are yelling. You're already down ${fmt(loss)}${hedged ? ", and your hedge cut that in half" : ""}.`,
-            `股市下跌 35%，電視主播在大叫。你已經蝕了 ${fmt(loss)}${hedged ? "，而你的對沖已幫你減少了一半損失" : ""}。`)
-          : L("Markets fall 35%. TV anchors are yelling. Luckily you had nothing to lose.", "股市下跌 35%，電視主播在大叫。幸好你本來就沒甚麼可以蝕。"),
+        text: crisisText(`Markets fall ${depth}. TV anchors are yelling.`, `股市下跌 ${depth}，電視主播在大叫。`),
         choices: [
           {
             label: L("Buy the dip. All of it.", "撈底，全部撈"), sub: L("Be greedy when others are fearful", "別人恐懼時我貪婪"), run() {
@@ -705,4 +690,3 @@ const MILESTONES = [
     },
   },
 ];
-const MILESTONE_AT = Object.fromEntries(MILESTONES.map(m => [m.age, m]));

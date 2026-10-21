@@ -59,7 +59,9 @@ function drawAvatar(cv) {
   cv.width = 16; cv.height = 16;
   const g = cv.getContext("2d");
   const px = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
-  const { skin, hair } = s.look;
+  const { skin } = s.look;
+  // grey creeps in from your fifties
+  const hair = s.age >= 58 ? HAIRS.grey : s.age >= 50 ? "#6f6a66" : s.look.hair;
   const o = outfit();
   const lvl = wealthLevel();
   const broke = s.age >= 18 && s.cash < 0;

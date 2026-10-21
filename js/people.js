@@ -95,9 +95,9 @@ function makePeer() {
   const lo = Math.max(0, g * 2 - 2), hi = Math.min(PEER_JOBS.length - 1, g * 2 + 5);
   const job = PEER_JOBS[rint(lo, hi)];
   const uni = Math.random() < [0.08, 0.2, 0.35, 0.5, 0.6][g];
-  // rough chance of not reaching 45, mostly in early childhood, higher in poorer countries
-  const dies = Math.random() < [0.12, 0.07, 0.05, 0.03, 0.03][g];
-  const diesAt = dies ? (Math.random() < 0.6 ? rint(0, 4) : rint(5, 44)) : null;
+  // rough chance of not reaching 65: early childhood in poorer countries, illness and accidents later on
+  const dies = Math.random() < [0.24, 0.16, 0.12, 0.09, 0.08][g];
+  const diesAt = dies ? (Math.random() < 0.4 ? rint(0, 4) : rint(5, 64)) : null;
   return { name: personName(iso, female), female, country: name, flag, job, uni, diesAt, marriesAt: Math.random() < 0.7 ? rint(22, 34) : null };
 }
 
@@ -108,6 +108,7 @@ function peerStatus(p, age) {
   if (age < 18) return L("secondary school", "中學");
   if (age < 22 && p.uni) return L("university", "大學");
   const married = p.marriesAt !== null && age >= p.marriesAt;
+  if (age >= 62) return married ? L("retired · married", "已退休 · 已婚") : L("retired", "已退休");
   return married ? cat(p.job, L(" · married", " · 已婚")) : p.job;
 }
 
@@ -157,6 +158,21 @@ function lifeStage() {
     text: L("Classes matter less than recruiting. Your network and the school's name decide which job offers you'll see at 22.",
       "上課沒有求職重要。你的人脈和學校的名氣，決定你 22 歲時會收到哪些工作邀約。"),
   };
+  if (s.job === JOBS.retired) return {
+    title: L("Retired", "退休"),
+    text: L("No more alarm clocks. Your money now has to last as long as you do, and the markets keep moving whether you watch or not.",
+      "不再需要鬧鐘。你的錢現在要撐得跟你一樣久，而無論你看不看，市場都會繼續波動。"),
+  };
+  if (s.age >= 58) return {
+    title: L("Retirement in sight", "退休在望"),
+    text: L("The finish line is close. Every decision now is about how you want the last stretch, and the years after it, to look.",
+      "終點線就在眼前。現在的每個決定，都關乎你希望最後一段路以及之後的日子是甚麼模樣。"),
+  };
+  if (s.age >= 45) return {
+    title: L("Late career", "職涯後段"),
+    text: L("You've seen a few cycles now. Parents get older, kids leave home, and the people you started with are starting to stop.",
+      "你已經歷過幾個週期。父母老了，孩子離家，和你一起入行的人開始陸續退下。"),
+  };
   if (s.track === "elite") return {
     title: L("High finance", "頂級金融圈"),
     text: L("Big money, long hours. Every year in elite finance costs you some sanity, so watch the bar.",
@@ -172,9 +188,9 @@ function lifeStage() {
 
 // real-world context shown under some decisions
 const DATA = {
-  m2: L("Temperament comes from what we're born with and what happens as we grow. Twin studies put about 40% of the differences in personality down to genes (Vukasović & Bratko 2015).",
+  kid1: L("Temperament comes from what we're born with and what happens as we grow. Twin studies put about 40% of the differences in personality down to genes (Vukasović & Bratko 2015).",
     "性格來自先天和成長經歷。雙胞胎研究顯示，人格差異約有 40% 來自遺傳（Vukasović & Bratko 2015）。"),
-  m6: L("In Walter Mischel's Stanford marshmallow studies, kids who waited longer did better later in life. A 2018 replication found the link much weaker once family background was taken into account (Watts, Duncan & Quan 2018).",
+  "kid2:0": L("In Walter Mischel's Stanford marshmallow studies, kids who waited longer did better later in life. A 2018 replication found the link much weaker once family background was taken into account (Watts, Duncan & Quan 2018).",
     "在 Walter Mischel 的史丹福棉花糖實驗中，等得較久的小孩日後表現較好。2018 年的重複研究發現，考慮家庭背景後，這種關聯弱得多（Watts、Duncan 與 Quan，2018）。"),
   compound: L("The rule of 72: divide 72 by the yearly return to get roughly how many years money takes to double. At 7% a year, that's about 10 years.",
     "72 法則：用 72 除以年回報率，大約就是資金翻倍所需的年數。年回報 7%，大約 10 年翻一倍。"),
@@ -184,7 +200,7 @@ const DATA = {
     "哈佛商學院 Shikhar Ghosh 的研究發現，約 75% 獲創投支持的初創公司最終無法歸還投資者的本金。"),
   angel: L("Research by Shikhar Ghosh at Harvard Business School found that about 75% of venture-backed startups never return their investors' money.",
     "哈佛商學院 Shikhar Ghosh 的研究發現，約 75% 獲創投支持的初創公司最終無法歸還投資者的本金。"),
-  m29: L("Trading on material non-public information is illegal in the US under the Securities Exchange Act of 1934, and the SEC brings insider trading cases every year.",
+  "ethics:0": L("Trading on material non-public information is illegal in the US under the Securities Exchange Act of 1934, and the SEC brings insider trading cases every year.",
     "根據美國《1934 年證券交易法》，利用重大非公開資料進行交易屬違法，美國證監會每年都會提出內幕交易訴訟。"),
   cfoask: L("Under the Dodd-Frank Act (2010), SEC whistleblowers whose tips lead to sanctions over $1 million can receive 10–30% of the money collected.",
     "根據《多德-弗蘭克法案》（2010 年），若舉報導致超過 100 萬美元的制裁，美國證監會的吹哨者可獲所收款項的 10–30%。"),
@@ -194,8 +210,32 @@ const DATA = {
     "隨著 AI 晶片需求急升，Nvidia 的市值在 2023 年突破 1 萬億美元，2024 年更突破 3 萬億美元。"),
   aiEnd: L("When the dot-com bubble burst, the Nasdaq fell about 78% from its March 2000 peak to its October 2002 low.",
     "科網泡沫爆破時，納斯達克指數由 2000 年 3 月的高位，跌至 2002 年 10 月的低位，跌幅約 78%。"),
-  m40: L("In the 2008 financial crisis, the S&P 500 fell about 57% from its October 2007 peak to its March 2009 low.",
+  "crisis:0": L("In the 2008 financial crisis, the S&P 500 fell about 57% from its October 2007 peak to its March 2009 low.",
     "2008 年金融海嘯期間，標普 500 指數由 2007 年 10 月高位跌至 2009 年 3 月低位，跌幅約 57%。"),
+  "ethics:1": L("In 2006 and 2007, backdated stock options led to investigations at more than 100 US companies, and several executives were criminally charged.",
+    "2006 至 2007 年間，期權倒簽事件令超過 100 間美國公司受到調查，多名高層被刑事起訴。"),
+  "ethics:2": L("The US Foreign Corrupt Practices Act (1977) makes it a crime to bribe foreign officials to win business, and companies have paid billions of dollars in penalties under it.",
+    "美國《海外反腐敗法》（1977 年）規定賄賂外國官員以取得生意屬刑事罪行，企業因此支付的罰款高達數十億美元。"),
+  "crisis:1": L("During the eurozone debt crisis, yields on Greece's 10-year government bonds rose above 30% in early 2012.",
+    "歐債危機期間，希臘 10 年期國債孳息率在 2012 年初升至 30% 以上。"),
+  "crisis:2": L("After the pandemic, US office vacancy rates climbed to record highs of nearly 20%, putting pressure on the banks that had lent against office buildings.",
+    "疫情過後，美國寫字樓空置率升至接近 20% 的歷史高位，令借錢給寫字樓業主的銀行承受壓力。"),
+  "midcareer:2": L("Since 2019, the World Health Organization has classified burn-out in its International Classification of Diseases (ICD-11) as an occupational phenomenon caused by chronic workplace stress.",
+    "自 2019 年起，世界衞生組織在《國際疾病分類》（ICD-11）中把職業倦怠列為由長期工作壓力引起的職業現象。"),
+  "legacy:0": L("The Giving Pledge, launched in 2010, asks the world's richest people to give away most of their wealth. More than 200 billionaires have signed it.",
+    "2010 年發起的「捐贈誓言」邀請全球最富有的人捐出大部分財富，已有超過 200 位億萬富翁簽署。"),
+  "era-homeboom": L("Between 2003 and 2007, emerging-market stocks (the MSCI Emerging Markets index) more than tripled, then fell by more than half in the 2008 crisis.",
+    "2003 至 2007 年間，新興市場股票（MSCI 新興市場指數）升逾三倍，其後在 2008 年金融海嘯中跌去一半以上。"),
+  "era-crypto": L("Bitcoin fell about 77% from its November 2021 peak to its late-2022 low, then went on to set new record highs.",
+    "比特幣由 2021 年 11 月的高位下跌約 77% 至 2022 年底的低位，其後再創歷史新高。"),
+  "era-green": L("Tesla's share price rose more than 700% in 2020 alone, making it the world's most valuable carmaker.",
+    "Tesla 股價僅在 2020 年就上升超過 700%，成為全球市值最高的汽車製造商。"),
+  "era-property": L("US home prices fell about 27% from their 2006 peak to their 2012 low, according to the S&P Case-Shiller national index.",
+    "根據標普 Case-Shiller 全國指數，美國樓價由 2006 年高位下跌約 27% 至 2012 年低位。"),
+  "era-biotech": L("Novo Nordisk, maker of the weight-loss drugs Ozempic and Wegovy, became Europe's most valuable company in 2023.",
+    "生產減肥藥 Ozempic 和 Wegovy 的諾和諾德，在 2023 年成為歐洲市值最高的公司。"),
+  password: L("Over the long run, the S&P 500 has returned roughly 10% a year on average including dividends, though some years it fell by a third or more.",
+    "長遠而言，標普 500 指數連股息計算的平均年回報約為 10%，但有些年份會下跌三分之一或更多。"),
   pandemic: L("In early 2020, the S&P 500 fell about 34% in just over a month, the fastest drop of that size on record.",
     "2020 年初，標普 500 指數在一個多月內下跌約 34%，是有紀錄以來同等跌幅中最快的一次。"),
   bankrun: L("In March 2023, Silicon Valley Bank collapsed within about two days of a run by depositors. US deposits are insured by the FDIC up to $250,000 per depositor, per bank.",

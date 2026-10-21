@@ -200,7 +200,7 @@
   .peer > span { color: var(--muted); font-size: .85rem; text-align: right; }
   .peer.gone { opacity: .55; }
 
-  .lifemap { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
+  .lifemap { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
   .lifemap i, .legend i { display: block; aspect-ratio: 1; border-radius: 3px; background: var(--track); }
   .lifemap .plain, .legend .plain { background: var(--map-plain); }
   .lifemap .good, .legend .good { background: var(--map-good); }
@@ -262,6 +262,27 @@
   .end-h { font: 700 1.1rem var(--serif); margin: 22px 0 6px; }
   .epilogue { margin-bottom: 8px; }
   .endshot { max-width: 300px; border-radius: 10px; }
+  .unlocks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .chip.unlock { background: var(--data-bg); color: var(--ink); }
+
+  /* ---------- My lives ---------- */
+  #app.start.wide { max-width: 940px; }
+  .back-btn { margin-right: auto; border: 0; background: transparent; font-weight: 650; cursor: pointer; color: var(--muted); }
+  .back-btn:hover { color: var(--ink); }
+  .cstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 8px 0 6px; }
+  .cstat { background: var(--chip); border-radius: 12px; padding: 12px 14px; }
+  .cstat b { display: block; font: 700 1.5rem var(--mono); }
+  .cstat span { font-size: .8rem; color: var(--muted); }
+  .cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .ctile { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 1px; }
+  .ctile .cflag { font-size: 1.5rem; line-height: 1.2; }
+  .ctile b { font-size: .88rem; line-height: 1.3; }
+  .ctile small { color: var(--muted); font-size: .76rem; }
+  .ctile.on { background: var(--data-bg); border-color: transparent; }
+  .ctile.off { opacity: .5; }
+  .ctile.off .cflag { filter: grayscale(1); }
+  .records small { display: block; color: var(--muted); font-weight: 400; font-size: .8rem; }
+  .secondary.danger { color: var(--bad); }
 
   @media (max-width: 1120px) {
     .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
@@ -294,10 +315,18 @@
 <script src="js/i18n.js"></script>
 <script src="js/data.js"></script>
 <script src="js/life.js"></script>
+<script src="js/variants.js"></script>
+<script src="js/more-milestones.js"></script>
 <script src="js/events.js"></script>
 <script src="js/shocks.js"></script>
+<script src="js/eras.js"></script>
 <script src="js/people.js"></script>
+<script src="js/late-life.js"></script>
+<script src="js/more-events.js"></script>
+<script src="js/childhood.js"></script>
 <script src="js/pixels.js"></script>
+<script src="js/leek.js"></script>
+<script src="js/collection.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

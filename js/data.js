@@ -82,6 +82,11 @@ const JOBS = {
   hf: L("Hedge Fund Founder", "對沖基金創辦人"),
   consultant: L(`"Consultant"`, "「顧問」"),
   aiExec: L("AI Startup Exec", "AI 初創高層"),
+  familyOffice: L("Head of the Family Office", "家族辦公室主管"),
+  teacher: L("Finance Lecturer", "金融學講師"),
+  founder: L("Founder", "創辦人"),
+  consultantSelf: L("Independent Consultant", "獨立顧問"),
+  retired: L("Retired", "退休人士"),
 };
 
 const CITIES = [L("New York", "紐約"), L("London", "倫敦"), L("Hong Kong", "香港"), L("Singapore", "新加坡")];
@@ -91,7 +96,8 @@ const app = $("#app");
 let s = null;
 const START_AGE = 2;
 const TYPE_AGE = 15;
-const END_AGE = 45;
+// lives run to retirement age
+const END_AGE = 65;
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const rint = (a, b) => Math.floor(rnd(a, b + 1));
