@@ -526,7 +526,7 @@ const EVENTS = [
     text: L("Your partner asks over dinner. You instinctively start building a cost model in your head.",
       "伴侶在晚飯時問你。你本能地在腦中建立成本模型。"),
     choices: [
-      { label: L("Yes", "要"), sub: L("The best long-term investment", "最好的長線投資"), run() { s.flags.kid = true; s.income -= 20000 * sc(); s.sanity += 6; s.hustle -= 4; return L("You're a parent! Sleep is now a theoretical concept, which, to be fair, it already was.", "你做父母了！睡眠現在是一個理論概念，不過公平地說，它本來就是。"); } },
+      { label: L("Yes", "要"), sub: L("The best long-term investment", "最好的長線投資"), run() { s.flags.kid = true; s.flags.kidBorn = s.age; s.flags.kidUpkeep = 20000 * sc(); s.upkeep += s.flags.kidUpkeep; s.sanity += 6; s.hustle -= 4; return L("You're a parent! Sleep is now a theoretical concept, which, to be fair, it already was.", "你做父母了！睡眠現在是一個理論概念，不過公平地說，它本來就是。"); } },
       { label: L("Not yet", "遲些再說"), sub: L("Q3, maybe", "或者第三季"), run() { s.hustle += 3; s.used.delete("kids"); return L(`You agree to "revisit it next quarter." Your partner did not love that phrasing.`, "你們同意「下一季再檢討」。伴侶不太喜歡這個說法。"); } },
     ],
   })),
@@ -535,7 +535,7 @@ const EVENTS = [
     text: L(`The private school costs ${fmt(60000 * sc())} a year. For kindergarten. There's an interview. For a four-year-old.`,
       `私立學校每年 ${fmt(60000 * sc())}。是幼稚園。要面試，面試一個四歲小孩。`),
     choices: [
-      { label: L("Private school", "私立學校"), sub: L("The pipeline starts early", "輸送帶要從小開始"), run() { s.income -= 60000 * sc(); s.network += 8; return L("Your kid's classmates' parents are all MDs. School pick-up is your new networking event.", "孩子同學的家長全是 MD。接放學成了你新的社交活動。"); } },
+      { label: L("Private school", "私立學校"), sub: L("The pipeline starts early", "輸送帶要從小開始"), run() { s.flags.kidUpkeep = (s.flags.kidUpkeep || 0) + 60000 * sc(); s.upkeep += 60000 * sc(); s.network += 8; return L("Your kid's classmates' parents are all MDs. School pick-up is your new networking event.", "孩子同學的家長全是 MD。接放學成了你新的社交活動。"); } },
       { label: L("Public school", "公立學校"), sub: L("Character-building", "磨練性格"), run() { s.sanity += 4; return L("Your kid is thriving. Your colleagues act like you're raising them in the woods.", "孩子茁壯成長。同事卻當你在森林裡養孩子。"); } },
     ],
   })),
@@ -566,12 +566,12 @@ const EVENTS = [
       { label: L(`"My money's all tied up right now"`, "「我的錢暫時全部套住了」"), sub: L("Technically true", "技術上是真的"), run() { s.sanity -= 15; return L("You wear your Rolex to the next family dinner. It's a mistake.", "你戴著勞力士出席下一次家庭飯局。這是個錯誤。"); } },
     ],
   })),
-  ev("house", [27, 42], () => s.cash > 150000 && !s.flags.house, () => ({
+  ev("house", [27, 42], () => !s.property && !homeBlocker(), () => ({
     title: L("Rent or buy?", "租樓還是買樓？"),
     text: L(`Your landlord raised the rent again. Everyone says real estate "only goes up."`,
       "業主又加租了。人人都說樓價「只會升」。"),
     choices: [
-      { label: L("Buy a home", "買樓自住"), sub: L("Put down roots", "落地生根"), run() { s.flags.house = true; s.income -= 8000 * sc(); s.sanity += 8; return L("You're a homeowner! Every weekend is now spent at the hardware store.", "你成為業主了！從此每個週末都在五金舖度過。"); } },
+      { label: L("Buy a home", "買樓自住"), sub: cat(L("Mortgage at ", "按揭利率 "), pct1(mortgageRate())), run() { const price = buyHome(); s.sanity += 8; return L(`You buy a home for ${fmt(price)} with a ${MORTGAGE_YEARS}-year mortgage. Every weekend is now spent at the hardware store.`, `你以 ${fmt(price)} 買了一個單位，做 ${MORTGAGE_YEARS} 年按揭。從此每個週末都在五金舖度過。`); } },
       {
         label: L("Buy rental properties", "買樓收租"), sub: L("Landlord era", "業主時代"), run() {
           s.flags.house = true;
@@ -587,7 +587,7 @@ const EVENTS = [
     title: L("Tax season", "報稅季節"),
     text: L(`Your accountant asks how "creative" you'd like to be this year.`, "你的會計師問你今年想有多「創意」。"),
     choices: [
-      { label: L("Very creative", "非常有創意"), sub: L("Offshore entities", "離岸公司"), run() { s.heat += 20; s.cash += Math.round(s.cash * 0.05); return L("You now own a shell company in the Cayman Islands. You've never been to the Cayman Islands.", "你現在擁有一間開曼群島的空殼公司。你從未去過開曼群島。"); } },
+      { label: L("Very creative", "非常有創意"), sub: L("Offshore entities", "離岸公司"), run() { s.heat += 20; s.flags.cayman = true; s.cash += Math.round(s.cash * 0.05); return L("You now own a shell company in the Cayman Islands. You've never been to the Cayman Islands.", "你現在擁有一間開曼群島的空殼公司。你從未去過開曼群島。"); } },
       { label: L("Normal deductions", "正常扣稅"), sub: L("Boring is safe", "悶即是安全"), run() { return L("You pay your taxes like a regular person. The roads are nice.", "你像普通人一樣交稅。馬路很平坦。"); } },
       { label: L("Do it yourself with free software", "用免費軟件自己報"), sub: L("Save $500", "慳 $500"), run() { s.sanity -= 8; s.cash += 500; return L("You save $500 and lose a weekend. A letter from the tax office arrives six months later.", "你慳了 $500，失去了一個週末。六個月後稅局來信了。"); } },
     ],
@@ -837,7 +837,7 @@ const EVENTS = [
       title: L("The superyacht", "超級遊艇"),
       text: L("A broker sends you a brochure for a 60-meter yacht. It has a helipad, a cinema and a crew of 18.", "一個經紀寄來一份 60 米遊艇的小冊子。它有直升機坪、私人影院和 18 名船員。"),
       choices: [
-        { label: L("Buy it", "買下它"), sub: UI.costs(cost), run() { s.cash -= cost; s.income -= cost * 0.1; s.network += 20; s.sanity += 6; return L("It costs a tenth of its price every year to run. You use it eleven days a year. It's wonderful.", "每年的營運費是售價的十分之一，而你一年只用十一天。感覺非常美妙。"); } },
+        { label: L("Buy it", "買下它"), sub: UI.costs(cost), run() { s.cash -= cost; s.upkeep += cost * 0.1; s.network += 20; s.sanity += 6; return L("It costs a tenth of its price every year to run. You use it eleven days a year. It's wonderful.", "每年的營運費是售價的十分之一，而你一年只用十一天。感覺非常美妙。"); } },
         { label: L("Buy it and rent it out", "買下並出租"), sub: L("Make it pay for itself", "讓它自負盈虧"), run() { s.cash -= cost; s.network += 10; if (chance(0.5)) { s.income += cost * 0.05; return L("Tech founders rent it all summer. It almost pays for itself.", "科技公司創辦人整個夏天都租用它。幾乎可以自負盈虧。"); } return L("A guest throws a party and the yacht needs a new interior. Insurance covers some of it.", "一位租客開派對，遊艇的內部需要重新裝修。保險只賠了一部分。"); } },
         { label: L("Buy a nice rowing boat instead", "改買一隻好看的划艇"), sub: L("Humble", "謙虛"), run() { s.sanity += 8; s.hustle += 3; return L("You row across the lake every Sunday. Your heart rate has never been better.", "你每個星期日都划艇橫越湖面。你的心跳從未如此健康。"); } },
       ],

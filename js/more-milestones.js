@@ -20,7 +20,12 @@ function degenSummer() {
 }
 
 // a title that fits the career you're in, for the mid-career promotion
-const nextTitle = () => s.track === "elite" ? L("Managing Director", "董事總經理") : s.track === "normie" ? L("Director", "總監") : L("Partner", "合夥人");
+// the big mid-career promotion skips you up the ladder when you have one, or just adds the title when you don't
+const midRank = () => Math.min(topRank(), Math.max(s.rank + 1, s.track === "elite" ? 4 : 3));
+const nextTitle = () => onLadder() ? rankName(midRank()) : s.track === "elite" ? L("Managing Director", "董事總經理") : s.track === "normie" ? L("Director", "總監") : L("Partner", "合夥人");
+function takeTitle(title) {
+  if (onLadder()) { s.rank = midRank(); refreshJob(); } else s.job = cat(title, " · ", s.job);
+}
 
 const EXTRA_MILESTONES = [
   {
@@ -104,12 +109,12 @@ const EXTRA_MILESTONES = [
             {
               label: L("Campaign for it hard", "全力爭取"), sub: UI.odds(odds), run() {
                 s.sanity -= 12;
-                if (chance(odds)) { s.income *= 1.5; s.network += 12; s.job = cat(title, " · ", s.job); return cat(L("You got it. ", "你成功升任"), title, L(". Your parents tell everyone. Your hours somehow get longer.", "。爸媽告訴所有人。你的工時不知為何變得更長。")); }
+                if (chance(odds)) { s.income *= 1.5; s.network += 12; takeTitle(title); return cat(L("You got it. ", "你成功升任"), title, L(". Your parents tell everyone. Your hours somehow get longer.", "。爸媽告訴所有人。你的工時不知為何變得更長。")); }
                 s.network -= 6; return L("Someone else gets it. They announce it in an email with three exclamation marks.", "別人得到了這個職位。公佈的電郵有三個感嘆號。");
               },
             },
             { label: L("Wait your turn", "耐心等待"), sub: L("Steady", "穩定"), run() { s.income *= 1.15; s.sanity += 4; return L("You don't get it this year, but you get a raise for being \"a great team player.\"", "你今年沒有升職，但因為是「出色的團隊成員」而獲得加薪。"); } },
-            { label: L("Jump to a rival for the title", "跳槽到對手公司拿這個職銜"), sub: L("Faster, riskier", "更快，風險更高"), run() { s.income *= 1.3; s.network -= 5; s.job = cat(title, " · ", s.job); return cat(L("A rival gives you the title straight away. You're ", "對手公司立即給你這個職銜。你現在是"), title, L(" now, just with fewer friends.", "了，只是朋友少了。")); } },
+            { label: L("Jump to a rival for the title", "跳槽到對手公司拿這個職銜"), sub: L("Faster, riskier", "更快，風險更高"), run() { s.income *= 1.3; s.network -= 5; takeTitle(title); return cat(L("A rival gives you the title straight away. You're ", "對手公司立即給你這個職銜。你現在是"), title, L(" now, just with fewer friends.", "了，只是朋友少了。")); } },
           ],
         };
       },

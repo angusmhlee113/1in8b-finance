@@ -81,7 +81,7 @@ EVENTS.push(
       {
         label: L("Take it", "接受"), sub: L("Lottery ticket with a salary", "有人工的彩票"),
         run() {
-          s.income *= 0.5; s.flags.aiEquity = true; s.job = JOBS.aiExec; s.sanity -= 4;
+          s.income *= 0.5; s.flags.aiEquity = true; s.job = s.baseJob = JOBS.aiExec; s.rank = 0; s.sanity -= 4;
           return L(`You join. The office has a nap pod and a CEO who says "AGI" in every meeting. Your equity pays off only if the boom survives.`, "你加入了。辦公室有午睡艙，CEO 每個會議都講「AGI」。你的股權只會在熱潮延續時才值錢。");
         },
       },

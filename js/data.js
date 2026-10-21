@@ -28,17 +28,17 @@ const FAMILY = [
 // swing scales the money won or lost on any gamble; ret/vol are yearly portfolio returns; crash scales the age-40 crash
 const TYPES = {
   aggressive: {
-    name: L("Aggressive", "進取型"), title: L("The Shark", "鯊魚"), emoji: "🦈", swing: 1.6, ret: 0.08, vol: 0.2, crash: 1.5,
+    name: L("Aggressive", "進取型"), title: L("The Shark", "鯊魚"), emoji: "🦈", swing: 1.6, ret: 0.06, vol: 0.2, crash: 1.5,
     desc: L("You go big. Every gamble pays more when it hits and hurts more when it misses, and your portfolio swings hard every year.",
       "你出手就要大。每次賭博贏的時候賺更多，輸的時候也痛更多，你的投資組合每年都大上大落。"),
   },
   balanced: {
-    name: L("Balanced", "平衡型"), title: L("The Strategist", "策略家"), emoji: "♟️", swing: 1, ret: 0.05, vol: 0.08, crash: 1,
+    name: L("Balanced", "平衡型"), title: L("The Strategist", "策略家"), emoji: "♟️", swing: 1, ret: 0.035, vol: 0.08, crash: 1,
     desc: L("You take calculated risks. Gambles play out at normal size, and your money grows at a steady market pace.",
       "你只冒計算過的風險。賭博的輸贏維持正常大小，你的錢按市場步伐穩定增長。"),
   },
   passive: {
-    name: L("Passive", "保守型"), title: L("The Turtle", "烏龜"), emoji: "🐢", swing: 0.5, ret: 0.035, vol: 0.02, crash: 0.5,
+    name: L("Passive", "保守型"), title: L("The Turtle", "烏龜"), emoji: "🐢", swing: 0.5, ret: 0.025, vol: 0.02, crash: 0.5,
     desc: L("Slow and steady. Gambles win less and lose less, and your money grows slowly but almost never shrinks.",
       "慢慢來，比較快。賭博贏得少也輸得少，你的錢增長得慢，但幾乎從不縮水。"),
   },
@@ -87,6 +87,8 @@ const JOBS = {
   founder: L("Founder", "創辦人"),
   consultantSelf: L("Independent Consultant", "獨立顧問"),
   retired: L("Retired", "退休人士"),
+  between: L("Between jobs", "待業中"),
+  sabbatical: L("On sabbatical", "放長假中"),
 };
 
 const CITIES = [L("New York", "紐約"), L("London", "倫敦"), L("Hong Kong", "香港"), L("Singapore", "新加坡")];
@@ -145,13 +147,16 @@ function fix() {
   s.hustle = clamp(s.hustle);
   s.sanity = clamp(s.sanity);
   s.cash = Math.round(s.cash);
-  s.income = Math.round(s.income);
+  s.income = Math.max(0, Math.round(s.income));
 }
 
 function setJob(job, track, income) {
   s.job = job;
   s.track = track;
   s.income = income;
+  s.baseJob = job;
+  s.rank = 0;
+  s.layoff = null;
 }
 
 function moveToHub() {

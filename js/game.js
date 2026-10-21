@@ -27,7 +27,8 @@ function birth(opts = {}) {
     network: clamp(tier * 12 + hub * 8 + rint(0, 10)),
     hustle: clamp(30 + rint(0, 30) + (tier <= 1 ? 15 : 0)),
     sanity: clamp(70 + rint(0, 20)),
-    income: 0, job: JOBS.kid, track: null, school: null, score: 0,
+    income: 0, upkeep: 0, prices: 1, inflation: 0, sides: [], alloc: null, pension: 0, property: null, credit: null, rate: null,
+    hist: [], promos: [], terms: new Set(), shadow: null, market: null, taxPaid: 0, rank: 0, baseJob: null, job: JOBS.kid, track: null, school: null, score: 0,
     heat: 0, city: null, flags: {}, log: [], used: new Set(),
     risk: 0, type: null, notes: [], ai: null,
     look: makeLook(iso), home: pick(HOMETOWNS[iso]), family: makeFamily(tier, g),
@@ -62,66 +63,51 @@ function planMilestones() {
 // each year: invested money compounds, debt accrues interest, and you save your net income
 function advanceTo(age) {
   while (s.age < age) {
-    const t = typeOf();
     const year = s.age + 1;
-    if (s.cash > 0 && t) {
-      // fat tails: most years follow the bell curve, but a few are violent crashes or melt-ups
-      const roll = Math.random();
-      if (s.age >= 18 && roll < 0.04) {
-        const drop = Math.min(0.85, rnd(0.25, 0.45) * t.crash);
-        s.cash *= 1 - drop;
-        s.notes.push({ bad: true, text: L(`📉 Crash year at ${year}: out of nowhere, markets collapsed. Your portfolio fell ${pct(drop)}.`, `📉 ${year} 歲崩盤年：毫無預兆地，市場崩潰了。你的投資組合下跌 ${pct(drop)}。`) });
-      } else if (s.age >= 18 && roll < 0.07) {
-        const gain = rnd(0.3, 0.6) * t.swing;
-        s.cash *= 1 + gain;
-        s.notes.push({ bad: false, text: L(`📈 Melt-up year at ${year}: markets went vertical. Your portfolio rose ${pct(gain)}.`, `📈 ${year} 歲狂飆年：市場直線飆升。你的投資組合上升 ${pct(gain)}。`) });
-      } else {
-        s.cash *= 1 + Math.max(-0.5, t.ret + t.vol * gauss() - currencyDrag());
-      }
-      if (s.ai.exposure > 0 && s.age >= s.ai.start && s.age < s.ai.end) {
-        const gain = s.ai.exposure * rnd(0.1, 0.4) * t.swing;
-        s.cash *= 1 + gain;
-        s.notes.push({ bad: false, text: L(`🤖 AI boom: your AI stocks pushed your portfolio up another ${pct(gain)} this year.`, `🤖 AI 熱潮：你的 AI 股令投資組合今年再升 ${pct(gain)}。`) });
-      }
-      for (const era of s.eras) {
-        if (era.exposure <= 0 || s.age < era.start || s.age >= era.end) continue;
-        const def = eraDef(era.id);
-        const g = Math.max(-0.6, era.exposure * rnd(def.gain[0], def.gain[1]) * t.swing);
-        s.cash *= 1 + g;
-        s.notes.push({
-          bad: g < 0,
-          text: cat(`${def.emoji} `, def.name(), g >= 0
-            ? L(`: your ${def.asset.en} pushed your portfolio up ${pct(g)} this year.`, `：你的${def.asset.zh}令投資組合今年上升 ${pct(g)}。`)
-            : L(`: your ${def.asset.en} dragged your portfolio down ${pct(-g)} this year.`, `：你的${def.asset.zh}令投資組合今年下跌 ${pct(-g)}。`)),
-        });
-      }
-    } else if (s.cash > 0) {
-      s.cash *= 1.05;
+    if (year >= 18 && typeOf()) {
+      inflationYear(year);
+      rateYear(year);
+      creditYear(year);
+      const m = marketYear(year);
+      const crashed = moneyYear(year, m);
+      careerYear(year, crashed);
+      rankYear(year);
+      sideYear(year);
+      equityYear(year);
+      payYear(year, m);
+      homeYear(year, m);
+      pensionYear(year, m);
+      bankruptcy(year);
     } else {
-      s.cash *= 1.04;
+      // before you invest, money sits in a savings account your parents opened
+      s.cash *= s.cash > 0 ? 1.05 : 1 + debtRate();
+      s.cash += s.income - yearlySpend();
     }
-    s.cash += s.income;
     // the forgotten index fund grows like the market, whatever your personality, and isn't part of your net worth until you find it
     if (s.locked) s.locked.value *= 1 + Math.max(-0.4, 0.08 + 0.16 * gauss());
     // high finance wears you down, more slowly once you are senior
-    if (s.track === "elite") s.sanity -= s.age < 50 ? 3 : 1;
+    if (s.track === "elite") s.sanity -= s.age < 45 ? 2 : 1;
+    // when you're running on empty, you start protecting yourself: fewer late nights, more saying no
+    if (year >= 18 && s.sanity < 25) s.sanity += 1;
     // life past 55 gets a little gentler for everyone
     if (s.age >= 55) s.sanity += 1;
     s.age++;
+    s.hist.push({ age: s.age, worth: netWorth() });
   }
   fix();
 }
 
 function setType() {
   s.type = s.risk >= 2 ? "aggressive" : s.risk <= -2 ? "passive" : "balanced";
+  s.alloc = { ...DEFAULT_ALLOC[s.type] };
 }
 
 // savings kept in a weaker home currency lose value every year, until you move to a finance hub
-const DRAG = [0.06, 0.04, 0.015, 0, 0];
+const DRAG = [0.04, 0.025, 0.01, 0, 0];
 const currencyDrag = () => s.city || s.flags.dollarized ? 0 : DRAG[s.c.g] * (s.flags.gold ? 0.5 : 1);
 
 // shady choices build up regulator attention; from 22 on, each year has a small chance it catches up with you
-const secCatches = () => s.age >= 22 && s.heat > 0 && Math.random() < Math.min(0.05, s.heat / 6000);
+const secCatches = () => s.age >= 22 && s.heat > 0 && Math.random() < Math.min(0.02, s.heat / 15000);
 
 // labels for every boom running right now, for the "This year" panel
 const activeEras = () => [
@@ -129,7 +115,10 @@ const activeEras = () => [
   ...s.eras.filter(e => s.age > e.start && s.age < e.end).map(e => { const d = eraDef(e.id); return cat(`${d.emoji} `, d.name()); }),
 ];
 
-const record = entry => s.record.push({ age: s.age, ...entry });
+const record = entry => {
+  if (entry.term) s.terms.add(entry.term);
+  s.record.push({ age: s.age, ...entry });
+};
 
 // ---------- the clock ----------
 
@@ -155,7 +144,7 @@ function step() {
   advanceTo(age);
   const year = s.years[age] = { start, crash: false, swan: false };
   for (const n of s.notes) {
-    record({ text: n.text, tone: n.bad ? "bad" : "good" });
+    record({ text: n.text, tone: n.bad ? "bad" : "good", term: n.term });
     if (n.bad) year.crash = true;
   }
   s.notes = [];
@@ -244,7 +233,7 @@ function resolve(st, c) {
   const tone = st.swan ? "swan" : gain < 0 || s.sanity - before.sanity <= -10 ? "bad" : gain > 0 ? "good" : "";
   if (st.swan && s.years[s.age]) s.years[s.age].swan = true;
   if (st.swan) (s.flags.swans ||= []).push(st.id);
-  record({ title: st.title, choice: c.label, text, chips, tone });
+  record({ title: st.title, choice: c.label, text, chips, tone, term: termFor(st.id) });
   const bigWin = before.cash > 0 && gain >= BIG_WIN.min && gain / before.cash >= BIG_WIN.pct ? { gain, pct: gain / before.cash } : null;
   return { text, chips, bigWin };
 }
@@ -281,11 +270,8 @@ function finish(kind) {
   if (ui.over) return;
   ui.over = true;
   clearInterval(ui.timer);
-  let fine = 0;
-  if (kind === "sec") {
-    fine = Math.max(0, Math.round(s.cash * 0.9));
-    s.cash -= fine;
-  }
+  const fine = closeBooks(kind);
+  if (kind === "sec") s.terms.add("sec");
   ui.queue = [];
   const e = { kind, fine, compare: compareStarts() };
   e.news = recordLife(e);
@@ -307,7 +293,7 @@ function simulateLife(ci, tier) {
       continue;
     }
     if (!s.type) setType();
-    if (secCatches()) { s.cash -= Math.max(0, s.cash * 0.9); break; }
+    if (secCatches()) { closeBooks("sec"); return s.cash; }
     const def = sceneFor(age);
     if (def.pre && def.pre()) break;
     const st = def.build();
@@ -320,6 +306,7 @@ function simulateLife(ci, tier) {
     if (s.sanity <= 0) break;
   }
   if (s.sanity > 0) advanceTo(END_AGE);
+  closeBooks();
   return s.cash;
 }
 
@@ -467,8 +454,8 @@ const TIERS = [
 function endingInfo(e) {
   if (e.kind === "sec") return {
     id: "sec", emoji: "⚖️", title: L("SEC'd", "被證監會盯上"),
-    blurb: L(`The SEC found your texts. You pay ${fmt(e.fine)} in fines and disgorgement and spend 18 months at a minimum-security prison with surprisingly good tennis courts.`,
-      `證監會找到了你的短訊。你支付了 ${fmt(e.fine)} 的罰款及追繳非法所得，並在一間最低保安級別、網球場出奇地好的監獄度過 18 個月。`),
+    blurb: L(`The SEC found your texts. They seize ${fmt(e.fine.seized)}, which is everything you have, your lawyers bill you ${fmt(e.fine.legal)}, and you spend 18 months at a minimum-security prison with surprisingly good tennis courts. You walk out owing money.`,
+      `證監會找到了你的短訊。他們沒收了 ${fmt(e.fine.seized)}，即是你的全部身家，律師再向你收取 ${fmt(e.fine.legal)}，你還要在一間最低保安級別、網球場出奇地好的監獄度過 18 個月。出獄時你還欠著債。`),
   };
   if (e.kind === "burnout") return {
     id: "burnout", emoji: "🧘", title: L(`Burnt Out at ${s.age}`, `${s.age} 歲燃燒殆盡`),
@@ -493,6 +480,23 @@ function shareText(e) {
 
 // the address to share, when the game is running on a real website
 const gameURL = () => location.protocol.startsWith("http") && location.hostname !== "localhost" ? location.origin + location.pathname : "";
+
+// the boring twin who put every paycheck into an index fund and never touched it
+function indexHTML() {
+  if (s.shadow == null) return "";
+  const twin = Math.round(s.shadow);
+  const diff = s.cash - twin;
+  const verdict = diff >= 0
+    ? L(`You beat the index by <strong>${fmt(diff)}</strong>. All that stress was worth something.`, `你跑贏指數 <strong>${fmt(diff)}</strong>。所有壓力總算有點價值。`)
+    : L(`The index beat you by <strong>${fmt(-diff)}</strong>. 🥬 Doing nothing would have done better.`, `指數跑贏了你 <strong>${fmt(-diff)}</strong>。🥬 甚麼都不做反而更好。`);
+  const line = twin < 1000
+    ? L("📈 If you had put every spare dollar into an index fund, you'd have <strong>nothing</strong>: your pay never covered your costs, so there were no spare dollars.", "📈 如果你把每一分閒錢都放進指數基金，你會<strong>一無所有</strong>：你的收入從來不夠支出，根本沒有閒錢。")
+    : L(`📈 If you had put every paycheck into an index fund and ignored everything else, you'd have <strong>${fmt(twin)}</strong>.`, `📈 如果你把每份薪金都放進指數基金，其他一概不理，你會有 <strong>${fmt(twin)}</strong>。`);
+  return `<div class="rank compare">
+    <div>${tr(line)}</div>
+    <div class="muted small">${tr(verdict)}</div>
+  </div>`;
+}
 
 function compareHTML(c) {
   const beat = Math.round(c.beat * 100);
@@ -657,6 +661,7 @@ function buildShell() {
   app.className = "game";
   app.innerHTML = `
     <header class="gbar" id="gbar"></header>
+    <div class="ticker" id="ticker" aria-label="${tr(L("Market ticker", "市場報價"))}"></div>
     <div class="cols">
       <div class="col">
         <section class="panel idcard" id="idcard"></section>
@@ -693,7 +698,7 @@ function renderAll() {
       ${SPEEDS.map(v => `<button data-act="speed" data-v="${v}" aria-pressed="${ui.speed === v}">${v}×</button>`).join("")}
       <button data-act="next" ${ui.over ? "disabled" : ""}>${tr(L("Next decision »", "下一個決定 »"))}</button>
       <button data-act="auto" aria-pressed="${ui.auto}">${tr(L("Auto mode", "自動模式"))}</button>
-      <button data-act="theme" aria-label="${tr(L("Switch light or dark", "切換深淺色"))}">${isDark() ? "☾" : "☀︎"}</button>
+      <button data-act="theme" aria-label="${tr(L("Switch theme: light, dark or terminal", "切換主題：淺色、深色或終端機"))}">${THEME_ICON[currentTheme()]}</button>
       ${langHTML()}
       <button data-act="exit">${tr(L("Exit", "離開"))}</button>
     </div>`;
@@ -729,12 +734,24 @@ function renderAll() {
       <p>${tr(L("<b>Sanity</b> is your mental health. Hit zero and you burn out.", "<b>理智</b>是你的精神健康。跌到零就會燃燒殆盡。"))}</p>
     </details>
     <div class="money">
-      <div><span>${tr(L("Net worth", "身家"))}</span><b class="${s.cash < 0 ? "neg" : ""}">${fmt(s.cash)}</b></div>
-      <div><span>${tr(L("Saved per year", "每年儲蓄"))}</span><b>${s.income ? fmt(s.income) : "—"}</b></div>
+      <div><span>${tr(jgL(L("Net worth", "身家"), "networth"))}</span><b class="${netWorth() < 0 ? "neg" : ""}">${fmt(netWorth())}</b></div>
+      ${s.age >= 22 ? `<div><span>${tr(L("Pay per year", "每年收入"))}</span><b>${s.income ? fmt(s.income) : "—"}</b></div>
+      <div><span>${tr(L("Living costs", "生活開支"))}</span><b class="neg">-${fmt(yearlySpend())}</b></div>
+      <div><span>${tr(jgL(L("Income tax", "入息稅"), "incometax"))}</span><b class="muted">${pct(incomeTaxRate())}</b></div>` : ""}
+      ${s.property && s.property.loan > 0 ? `<div><span>${tr(jgL(L("Mortgage", "按揭供款"), "mortgage"))}</span><b class="neg">-${fmt(s.property.payment)}</b></div>` : ""}
+      ${s.pension > 0 ? `<div><span>${tr(jgL(L("Pension (locked)", "退休金（鎖定）"), "pension"))}</span><b>${fmt(s.pension)}</b></div>` : ""}
+      ${s.credit != null ? `<div><span>${tr(jgL(L("Credit score", "信貸評分"), "credit"))}</span><b class="${s.credit < 620 ? "neg" : "muted"}">${s.credit}</b></div>` : ""}
+      ${s.sides.map(x => { const d = SIDES[x.id]; return `<div><span>${d.emoji} ${tr(d.name)}</span><b class="${x.last < 0 ? "neg" : ""}">${x.last == null ? tr(L("Just started", "剛開始")) : `${x.last < 0 ? "-" : "+"}${fmt(Math.abs(x.last))}`}</b></div>`; }).join("")}
       ${s.ai.exposure > 0 ? `<div><span>${tr(L("AI exposure", "AI 持倉"))}</span><b>${pct(s.ai.exposure)}</b></div>` : ""}
       ${s.eras.filter(e => e.exposure > 0).map(e => { const d = eraDef(e.id); return `<div><span>${d.emoji} ${tr(L(`${capitalize(d.asset.en)} exposure`, `${d.asset.zh}持倉`))}</span><b>${pct(e.exposure)}</b></div>`; }).join("")}
-    </div>`;
+    </div>
+    ${s.age >= 18 ? `${breakdownHTML()}${chartSVG(false)}` : ""}
+    ${s.age >= 18 && !ui.over ? `<button class="secondary careerbtn" data-act="portfolio" ${ui.modal ? "disabled" : ""}>${tr(L("📊 Portfolio, home and pension", "📊 投資組合、物業與退休金"))}</button>` : ""}
+    ${s.age >= 22 && s.age < END_AGE - 1 && !ui.over ? `<button class="secondary careerbtn" data-act="career" ${careerReady() && !ui.modal ? "" : "disabled"}>${tr(L("💼 Career moves", "💼 職業發展"))}</button>
+      <p class="small muted careerhint">${careerReady() ? tr(L("Change jobs or start a side hustle. Pauses the clock.", "轉工或開展副業。時間會暫停。")) : tr(L(`You can look around again at ${s.flags.careerAt + CAREER_GAP}.`, `${s.flags.careerAt + CAREER_GAP} 歲時可以再看看。`))}</p>` : ""}`;
 
+  $("#ticker").innerHTML = tickerHTML();
+  refreshTip();
   drawScene($("#scene"));
   $("#caption").textContent = tr(sceneCaption());
 
@@ -745,7 +762,8 @@ function renderAll() {
   $("#focus").innerHTML = `
     <div class="phead"><h3>${tr(L("This year", "今年"))}</h3>${activeEras().map(x => `<small class="boom">${tr(x)}</small>`).join(" ")}</div>
     <div class="muted">${tr(stage.title)} · ${tr(s.city || s.home)} · ${tr(s.c.name)}</div>
-    <p>${tr(stage.text)}</p>`;
+    <p>${tr(stage.text)}</p>
+    ${s.age >= 15 && s.sanity < 25 && !ui.over ? `<p class="warn">${tr(L("⚠️ You're close to burning out. Pick calmer options, change jobs, or take a sabbatical from Career moves.", "⚠️ 你快要燃燒殆盡了。選擇較輕鬆的選項、轉工，或在「職業發展」中放個長假。"))}</p>` : ""}`;
 
   $("#record").innerHTML = `
     <div class="phead"><h3>${tr(L("Life record", "人生紀錄"))}</h3><small>${tr(L("Newest first", "最新在前"))}</small></div>
@@ -753,7 +771,8 @@ function renderAll() {
       <span class="rage">${tr(UI.age(r.age))}</span>
       <div>${r.title ? `<div class="rtitle">${tr(r.title)}${r.choice ? ` · ${tr(r.choice)}` : ""}</div>` : ""}
         ${tr(r.text) ? `<div class="rtext">${tr(r.text)}</div>` : ""}
-        ${r.chips && r.chips.length ? `<div class="chips">${chipsHTML(r.chips)}</div>` : ""}</div>
+        ${r.chips && r.chips.length ? `<div class="chips">${chipsHTML(r.chips)}</div>` : ""}
+        ${r.term && GLOSSARY[r.term] ? `<div class="chips"><span class="chip term-chip" title="${esc(tr(GLOSSARY[r.term][1]))}">📖 ${tr(GLOSSARY[r.term][0])}</span></div>` : ""}</div>
     </li>`).join("")}</ol>`;
 
   const f = s.family;
@@ -769,7 +788,7 @@ function renderAll() {
     ${row(L("Siblings", "兄弟姊妹"), String(f.siblings))}
     ${s.age >= 22 ? row(L("Partner", "伴侶"), s.flags.married ? L("Married", "已婚") : s.flags.partner ? L("Dating", "拍拖中") : L("Single", "單身")) : ""}
     ${s.age >= 22 ? row(L("Kids", "子女"), s.flags.kid ? "1" : "0") : ""}
-    ${s.age >= 22 ? row(L("Home", "住所"), s.flags.house ? L("Owns", "自置") : L("Rents", "租住")) : ""}`;
+    ${s.age >= 22 ? row(L("Home", "住所"), s.property ? L("Owns", "自置") : L("Rents", "租住")) : ""}`;
 
   $("#peers").innerHTML = `
     <div class="phead"><h3>${tr(L("Born in the same second", "同一秒出生的人"))}</h3><small>${tr(L("At this same age", "在同一歲數"))}</small></div>
@@ -871,15 +890,16 @@ function renderModal() {
       </div>`;
   } else if (m.kind === "decision") {
     const st = m.st;
-    body = `${modalHead(st.swan ? UI.swan : st.small ? L("Growing up", "成長點滴") : L("A big decision", "重大決定"))}
+    body = `${modalHead(st.head || (st.swan ? UI.swan : st.small ? L("Growing up", "成長點滴") : L("A big decision", "重大決定")))}
       <div class="mbody">
         <h2>${tr(st.title)}</h2>
         <p>${tr(st.text)}</p>
         ${dataHTML(st.id)}
+        ${termHTML(termFor(st.id))}
         <div class="options">${st.choices.map((c, i) => `<button class="option" data-act="choose" data-i="${i}" ${c.locked ? "disabled" : ""}>
           <span class="onum">${i + 1}</span><span><span class="cl">${tr(c.label)}</span><span class="cs">${c.locked ? "🔒 " + tr(c.locked) : tr(c.sub)}</span></span>
         </button>`).join("")}</div>
-        <button class="ghost" data-act="autoall">${tr(L("Leave decisions to auto from now on", "從現在起交由自動模式決定"))}</button>
+        ${st.id === "career" ? "" : `<button class="ghost" data-act="autoall">${tr(L("Leave decisions to auto from now on", "從現在起交由自動模式決定"))}</button>`}
       </div>`;
   } else if (m.kind === "result") {
     const { st, c, r } = m;
@@ -889,7 +909,7 @@ function renderModal() {
         ${c.label ? `<div class="picked">${tr(UI.chose)} <b>${tr(c.label)}</b></div>` : `<p>${tr(st.text)}</p>`}
         ${tr(r.text) ? `<p class="outcome">${tr(r.text)}</p>` : ""}
         ${r.chips.length ? `<div class="chips">${chipsHTML(r.chips)}</div>` : ""}
-        ${c.label ? "" : dataHTML(st.id)}
+        ${c.label ? "" : dataHTML(st.id) + termHTML(termFor(st.id))}
         <button class="primary" data-act="close">${tr(s.sanity <= 0 ? UI.uhoh : UI.continue)}</button>
         ${r.bigWin ? `<button class="secondary" data-act="flex">${tr(L(`📸 Post a gain screenshot (+${gainPct(r.bigWin.pct)})`, `📸 發佈盈利截圖（+${gainPct(r.bigWin.pct)}）`))}</button>` : ""}
       </div>`;
@@ -912,6 +932,8 @@ function renderModal() {
         <button class="primary" data-act="quit">${tr(L("Yes, back to the start", "是，返回開始畫面"))}</button>
         <button class="secondary" data-act="stay">${tr(L("Keep living", "繼續生活"))}</button>
       </div>`;
+  } else if (m.kind === "portfolio") {
+    body = portfolioHTML(m);
   } else if (m.kind === "ending") {
     const { emoji, title, blurb } = endingInfo(m.e);
     const frac = richerThan(s.cash);
@@ -934,6 +956,10 @@ function renderModal() {
           <div class="muted small">${tr(rankLine)}</div>
         </div>
         ${compareHTML(m.e.compare)}
+        ${indexHTML()}
+        ${chartSVG(true)}
+        ${s.terms.size ? `<h3 class="end-h">${tr(L(`📖 Finance terms you learned (${s.terms.size})`, `📖 你學到的金融詞彙（${s.terms.size}）`))}</h3>
+        <div class="chips">${[...s.terms].map(k => `<span class="chip term-chip" title="${esc(tr(GLOSSARY[k][1]))}">${tr(GLOSSARY[k][0])}</span>`).join("")}</div>` : ""}
         ${s.locked ? `<p class="small muted">🔑 ${tr(L(`You never remembered the password to the S&P 500 fund you opened as a teenager. It's now worth ${fmt(s.locked.value)}, and nobody knows it's there.`, `你始終沒有記起少年時開的標普 500 基金密碼。它現在值 ${fmt(s.locked.value)}，而沒有人知道它的存在。`))}</p>` : ""}
         ${m.e.news.length ? `<div class="unlocks">${m.e.news.map(n => `<span class="chip unlock">🆕 ${tr(n)}</span>`).join("")}</div>` : ""}
         <h3 class="end-h">${tr(L("The others born in the same second", "同一秒出生的其他人"))}</h3>
@@ -1017,8 +1043,13 @@ function renderRoll() {
 
 function isDark() {
   const set = document.documentElement.dataset.theme;
-  return set ? set === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  return set ? set !== "light" : matchMedia("(prefers-color-scheme: dark)").matches;
 }
+// light, then dark, then a trading-terminal look
+const THEMES = ["light", "dark", "terminal"];
+const currentTheme = () => document.documentElement.dataset.theme || (isDark() ? "dark" : "light");
+const nextTheme = () => THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
+const THEME_ICON = { light: "☀︎", dark: "☾", terminal: "▣" };
 
 function setTheme(t) {
   document.documentElement.dataset.theme = t;
@@ -1051,7 +1082,9 @@ document.addEventListener("click", e => {
       ui.auto = true;
       resolve(ui.modal.st, pick(ui.modal.st.choices.filter(c => !c.locked)));
       return closeModal();
-    case "theme": setTheme(isDark() ? "light" : "dark"); break;
+    case "theme": setTheme(nextTheme()); break;
+    case "portfolio": return openPortfolio();
+    case "pf-preset": case "pf-pension": case "pf-buy": case "pf-sell": case "pf-cashout": case "pf-save": return portfolioAct(b.dataset.act, b.dataset.v);
     case "exit":
       if (ui.modal && ui.modal.kind === "exit") return;
       ui.prev = ui.modal;
@@ -1063,6 +1096,7 @@ document.addEventListener("click", e => {
     case "choose": return choose(+b.dataset.i);
     case "close": return closeModal();
     case "aside": ui.aside = true; break;
+    case "career": return openCareer();
     case "unaside": ui.aside = false; break;
     case "flex": return postGains();
     case "again": return startLife();
@@ -1082,6 +1116,10 @@ document.addEventListener("click", e => {
       return;
   }
   renderAll();
+});
+
+document.addEventListener("input", e => {
+  if (e.target instanceof Element && e.target.matches("[data-asset]")) portfolioInput(e.target);
 });
 
 document.addEventListener("keydown", e => {

@@ -212,7 +212,7 @@ EVENTS.push(
     title: L("The empty nest", "空巢"),
     text: L("Your kid has moved out. The house is very quiet, and very big.", "孩子搬走了。家裡變得很安靜，也很大。"),
     choices: [
-      { label: L("Downsize", "換細屋"), sub: L("Free up money", "釋放資金"), run() { const g = s.flags.house ? Math.round(150000 * sc()) : Math.round(5000 * sc()); s.cash += g; s.sanity += 4; return L(`You move somewhere smaller and free up ${fmt(g)}. You don't miss the stairs.`, `你搬到較小的地方，騰出了 ${fmt(g)}。你不會懷念那些樓梯。`); } },
+      { label: L("Downsize", "換細屋"), sub: L("Free up money", "釋放資金"), run() { const g = s.property ? Math.round(Math.max(0, homeEquity()) * 0.35) : Math.round(5000 * sc()); if (s.property) s.property.value -= g; s.cash += g; s.sanity += 4; return L(`You move somewhere smaller and free up ${fmt(g)}. You don't miss the stairs.`, `你搬到較小的地方，騰出了 ${fmt(g)}。你不會懷念那些樓梯。`); } },
       { label: L("Adopt a dog", "領養一隻狗"), sub: L("Fill the silence", "填補寂靜"), run() { s.sanity += 14; s.cash -= Math.round(3000 * sc()); return L("The dog follows you everywhere. You talk to it about the markets. It never disagrees.", "狗狗到哪裡都跟著你。你跟牠談論市場，牠從不反駁。"); } },
       { label: L("Throw yourself into work", "全情投入工作"), sub: L("Distraction", "轉移注意力"), run() { s.hustle += 8; s.sanity -= 6; return L("You start sending emails at 6am again. Your team notices.", "你又開始在早上六點發電郵。你的團隊察覺到了。"); } },
     ],

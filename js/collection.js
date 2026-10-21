@@ -1,7 +1,7 @@
 // ---------- My lives: what you've collected across every life, saved in this browser ----------
 
 const COLL_KEY = "myLives";
-const freshColl = () => ({ lives: 0, countries: {}, endings: {}, types: {}, best: null, bestBeat: null, comeback: null, swans: {}, flexes: 0, dodged: 0, aiPaid: 0, eras: {}, leek: { lives: 0, times: 0, best: 0 } });
+const freshColl = () => ({ lives: 0, countries: {}, endings: {}, types: {}, best: null, bestBeat: null, comeback: null, swans: {}, flexes: 0, dodged: 0, aiPaid: 0, eras: {}, leek: { lives: 0, times: 0, best: 0 }, terms: {} });
 
 function loadColl() {
   try { return { ...freshColl(), ...JSON.parse(localStorage.getItem(COLL_KEY) || "{}") }; } catch { return freshColl(); }
@@ -78,6 +78,9 @@ function recordLife(e) {
     if (won && !prev.won) news.push(cat(L("Rode a boom: ", "乘上熱潮："), ERA_LABELS[id]));
     c.eras[id] = { seen: prev.seen + 1, won: prev.won + (won ? 1 : 0) };
   }
+  const newTerms = [...(s.terms || [])].filter(k => !c.terms[k]);
+  for (const k of s.terms || []) c.terms[k] = (c.terms[k] || 0) + 1;
+  if (newTerms.length) news.push(L(`📖 Learned ${newTerms.length} new finance term${newTerms.length > 1 ? "s" : ""}`, `📖 學到 ${newTerms.length} 個新金融詞彙`));
   saveColl(c);
   return news;
 }
@@ -172,6 +175,12 @@ function drawCollection() {
         const e = c.eras[id];
         return `<div class="ctile ${e ? "on" : "off"}"><b>${e ? tr(name) : "🔒 ???"}</b><small>${e ? tr(L(`Lived through ×${e.seen} · rode it ×${e.won}`, `經歷 ×${e.seen} · 乘上 ×${e.won}`)) : tr(L("Not seen yet", "尚未遇到"))}</small></div>`;
       }).join("")}</div>
+
+      <h3 class="end-h">${tr(L(`📖 Finance glossary (${Object.keys(c.terms).length}/${Object.keys(GLOSSARY).length})`, `📖 金融詞彙（${Object.keys(c.terms).length}/${Object.keys(GLOSSARY).length}）`))}</h3>
+      <p class="muted small">${tr(L("Every term you've run into across your lives. Live more lives to fill it in.", "你在各段人生中遇過的所有詞彙。多活幾次就能填滿。"))}</p>
+      <dl class="glossary">${Object.entries(GLOSSARY).map(([k, [term, def, eg]]) => c.terms[k]
+        ? `<div><dt>${tr(term)}</dt><dd>${tr(def)}</dd><dd class="eg">${tr(L("For example: ", "例子："))}${tr(eg)}</dd></div>`
+        : `<div class="off"><dt>🔒 ???</dt><dd>${tr(L("Not learned yet", "尚未學到"))}</dd></div>`).join("")}</dl>
 
       <button class="primary" data-act="back">${tr(L("Live another life →", "再活一次 →"))}</button>
       <button class="secondary danger" data-act="reset-coll">${tr(ui.confirmReset ? L("Click again to erase everything", "再按一次以清除全部紀錄") : L("Erase my collection", "清除我的收藏"))}</button>
